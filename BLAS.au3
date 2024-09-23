@@ -148,6 +148,7 @@ Global Const $tBLASCHAR4 = DllStructCreate("CHAR"), $pBLASCHAR4 = DllStructGetPt
 ; Example .......: No
 ; ===============================================================================================================================
 Func _blas_LoadBlasDll($sDllPath = @ScriptDir & "\libopenblas.dll")
+	ConsoleWrite($sDllPath & @CRLF)
 	If Not FileExists($sDllPath) Then Return SetError(1, 0, $sDllPath)
 
 	; necessary because some dlls need to find other module in other dll-files
@@ -822,7 +823,7 @@ Func _blas_duplicate(Const $mMatrix)
 	Local $hPtr = DllStructGetPtr($tStruct)
 
 	; copy content
-	DllCall('ntdll.dll', 'NONE', 'RtlCopyMemory', 'PTR', $hPtr, 'PTR', $mMatrix.ptr, 'ULONG_PTR', DllStructGetSize($tStruct))
+	DllCall('msvcrt.dll', 'NONE:cdecl', 'memcpy', 'PTR', $hPtr, 'PTR', $mMatrix.ptr, 'ULONG_PTR', DllStructGetSize($tStruct))
 	If @error Then Return SetError(2, @error, Null)
 
 	Local $mRet = $mMatrix
