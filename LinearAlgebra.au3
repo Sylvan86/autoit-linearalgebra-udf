@@ -97,9 +97,9 @@
 ; _la_regression                - calculates an n-dimensional linear or non-linear regression
 ;
 ; ---- adjustment ----
-; _la_adj                - performs a least-squares adjustment calculation for a system of different [weighted] non-linear equations
-; _la_adj_l1             - performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
-; _la_adj_addObservation - adds an observation to the adjustment system
+; _la_adjustement               - performs a least-squares adjustment calculation for a system of different [weighted] non-linear equations
+; _la_adjustment_l1             - performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
+; _la_adj_addObservation        - adds an observation to the adjustment system
 ;
 ; ---- additional helper functions ----
 ; _la_adj_showResult            - formats the results of _la_adj more clearly and display them in a window
@@ -124,14 +124,14 @@
 ; __la_derivate1D                    - calculates the 1st derivative of a function
 ;
 ; ---- adjustment ----
-; __la_adj_LevenbergMarquardt - performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Levenberg-Marquardt algorithm
-; __la_adj_GaussNewton        - performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Gauss-Newton algorithm
-; __la_adj_getYfromModel      - determines the vector of model results based on the approximated parameters
-; __la_adj_getJacobiParams    - calculate the jacobian matrix out of the observation formulas and the approximated parameters
-; __la_adj_setApproxValue     - sets/changes the initial value of a parameter in the parameter list
-; __la_adj_getWeights         - extracts the vector (or diagonal matrix) of the observation weights from the observations
-; __la_adj_getParamList       - extract the parameters to be estimated from the observation equations into a map
-; __la_adj_getVarComponents   - extracts a list of existing variance component groups in the system and calculates the weight of an observation
+; __la_adj_LevenbergMarquardt        - performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Levenberg-Marquardt algorithm
+; __la_adj_GaussNewton               - performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Gauss-Newton algorithm
+; __la_adj_getYfromModel             - determines the vector of model results based on the approximated parameters
+; __la_adj_getJacobiParams           - calculate the jacobian matrix out of the observation formulas and the approximated parameters
+; __la_adj_setApproxValue            - sets/changes the initial value of a parameter in the parameter list
+; __la_adj_getWeights                - extracts the vector (or diagonal matrix) of the observation weights from the observations
+; __la_adj_getParamList              - extract the parameters to be estimated from the observation equations into a map
+; __la_adj_getVarComponents          - extracts a list of existing variance component groups in the system and calculates the weight of an observation
 ;
 ; ---- additional helper functions ----
 ; __la_getSignificantDecimals        - determines the position of the 1st significant decimal place of a number
@@ -4559,9 +4559,9 @@ EndFunc
 
 
 ; #FUNCTION# ====================================================================================================================
-; Name ..........: _la_adj_l1()
+; Name ..........: _la_adjustment_l1()
 ; Description ...: performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
-; Syntax ........: _la_adj_l1($mObs, [$mParams = Default, [$sSolutionMethod = Default, [$sNumSolutionMethod = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-9, [$fEpsL1Iteration = 0.001, [$sDeriveMethod = "Central", [$fLambda = 1, [$iMaxIterations = 50, [$bIterativeVariance = False, [$sDataType = "DOUBLE"]]]]]]]]]]])
+; Syntax ........: _la_adjustment_l1($mObs, [$mParams = Default, [$sSolutionMethod = Default, [$sNumSolutionMethod = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-9, [$fEpsL1Iteration = 0.001, [$sDeriveMethod = "Central", [$fLambda = 1, [$iMaxIterations = 50, [$bIterativeVariance = False, [$sDataType = "DOUBLE"]]]]]]]]]]])
 ; Parameters ....: mObs               - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  mParams            - [Map] (Default: Default)
 ;                                     ↳ Map of parameters with their upper-case names as key and their initial value as value
@@ -4613,7 +4613,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: example_adjustment_l1.au3
 ; ===============================================================================================================================
-Func _la_adj_l1($mObs, $mParams = Default, $sSolutionMethod = Default, $sNumSolutionMethod = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-9, $fEpsL1Iteration = 0.001, $sDeriveMethod = "Central", $fLambda = 1, $iMaxIterations = 50, $bIterativeVariance = False, $sDataType = "DOUBLE")
+Func _la_adjustment_l1($mObs, $mParams = Default, $sSolutionMethod = Default, $sNumSolutionMethod = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-9, $fEpsL1Iteration = 0.001, $sDeriveMethod = "Central", $fLambda = 1, $iMaxIterations = 50, $bIterativeVariance = False, $sDataType = "DOUBLE")
 	Local $mObsOrig = $mObs
 	Local $mLstSq, $mLstSqOld, $aObsKeys, $aObs, $aV, $i, $j, $fEps
 	Local $mX, $mX_old = _blas_createVector(UBound($mParams), $sDataType)
