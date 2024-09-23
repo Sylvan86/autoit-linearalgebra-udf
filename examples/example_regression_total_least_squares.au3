@@ -32,21 +32,10 @@ Global $__g_hBLAS_DLL = DllOpen(FileGetLongName("../libopenblas.dll"))
 Global $iFlags = $__LA_LSTSQ_SDX
 
 Global $aPoints[][2] = [ _
-	[5,		80], _
-	[23,	78], _
-	[25,	60], _
-	[48,	53], _
-	[17,	85], _
-	[8,		84], _
-	[4,		73], _
-	[26,	79], _
-	[11,	81], _
-	[19,	75], _
-	[14,	68], _
-	[35,	72], _
-	[29,	58], _
-	[4,		92], _
-	[23,	65] _
+	[0,		0], _
+	[1,	1], _
+	[2,	4], _
+	[3,	9] _
 ]
 
 ; add the observations (direct observations + pseudo observations)
@@ -54,11 +43,11 @@ Global $sFunc, $mObs ; the variable holding the observations
 For $i = 0 To UBound($aPoints) - 1
 	; add the observation (but with the observed value 0, as we have converted the equation to 0 and included the y-value in the equation itself)
 	$sFunc = StringFormat("a * (%.16g + vx_%d) + b - %.16g - vy_%d ", $aPoints[$i][0], $i, $aPoints[$i][1], $i)
-	_la_adjustment_addObservation($mObs, $sFunc, 0, 1)
+	_la_adj_addObservation($mObs, $sFunc, 0, 1)
 
 	; add pseudo observations for vy_i & vx_i = 0 (with a high standard deviation so that it does not have a relevant influence on the result)
-	_la_adjustment_addObservation($mObs, StringFormat("vy_%d", $i), 0, 100)
-	_la_adjustment_addObservation($mObs, StringFormat("vx_%d", $i), 0, 100)
+	_la_adj_addObservation($mObs, StringFormat("vy_%d", $i), 0, 100)
+	_la_adj_addObservation($mObs, StringFormat("vx_%d", $i), 0, 100)
 Next
 
 ; do the regression and show the results

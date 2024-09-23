@@ -97,12 +97,12 @@
 ; _la_regression                - calculates an n-dimensional linear or non-linear regression
 ;
 ; ---- adjustment ----
-; _la_adjustment                - performs a least-squares adjustment calculation for a system of different [weighted] non-linear equations
-; _la_adjustment_l1             - performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
-; _la_adjustment_addObservation - adds an observation to the adjustment system
+; _la_adj                - performs a least-squares adjustment calculation for a system of different [weighted] non-linear equations
+; _la_adj_l1             - performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
+; _la_adj_addObservation - adds an observation to the adjustment system
 ;
 ; ---- additional helper functions ----
-; _la_adj_showResult            - formats the results of _la_adjustment more clearly and display them in a window
+; _la_adj_showResult            - formats the results of _la_adj more clearly and display them in a window
 ; ===============================================================================================================================
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
@@ -124,14 +124,14 @@
 ; __la_derivate1D                    - calculates the 1st derivative of a function
 ;
 ; ---- adjustment ----
-; __la_adjustment_LevenbergMarquardt - performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Levenberg-Marquardt algorithm
-; __la_adjustment_GaussNewton        - performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Gauss-Newton algorithm
-; __la_adjustment_getYfromModel      - determines the vector of model results based on the approximated parameters
-; __la_adjustment_getJacobiParams    - calculate the jacobian matrix out of the observation formulas and the approximated parameters
-; __la_adjustment_setApproxValue     - sets/changes the initial value of a parameter in the parameter list
-; __la_adjustment_getWeights         - extracts the vector (or diagonal matrix) of the observation weights from the observations
-; __la_adjustment_getParamList       - extract the parameters to be estimated from the observation equations into a map
-; __la_adjustment_getVarComponents   - extracts a list of existing variance component groups in the system and calculates the weight of an observation
+; __la_adj_LevenbergMarquardt - performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Levenberg-Marquardt algorithm
+; __la_adj_GaussNewton        - performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Gauss-Newton algorithm
+; __la_adj_getYfromModel      - determines the vector of model results based on the approximated parameters
+; __la_adj_getJacobiParams    - calculate the jacobian matrix out of the observation formulas and the approximated parameters
+; __la_adj_setApproxValue     - sets/changes the initial value of a parameter in the parameter list
+; __la_adj_getWeights         - extracts the vector (or diagonal matrix) of the observation weights from the observations
+; __la_adj_getParamList       - extract the parameters to be estimated from the observation equations into a map
+; __la_adj_getVarComponents   - extracts a list of existing variance component groups in the system and calculates the weight of an observation
 ;
 ; ---- additional helper functions ----
 ; __la_getSignificantDecimals        - determines the position of the 1st significant decimal place of a number
@@ -4387,7 +4387,7 @@ EndFunc
 ; Name ..........: _la_adjustment()
 ; Description ...: performs a least-squares adjustment calculation for a system of different [weighted] non-linear equations
 ; Syntax ........: _la_adjustment($mObservations, [$mParams = Default, [$sSolutionMethod = Default, [$sNumSolutionMethode = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-9, [$sDeriveMethod = "Central", [$fLambda = 1, [$iMaxIterations = 50, [$bIterativeVariance = False, [$sDataType = "DOUBLE"]]]]]]]]]])
-; Parameters ....: mObservations       - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Parameters ....: mObservations       - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  mParams             - [Map] (Default: Default)
 ;                                      ↳ Map of parameters with their upper-case names as key and their initial value as value
 ;                                        Default: parameters are determined using the observation equations and are automatically assigned the initial value 1.0
@@ -4417,7 +4417,7 @@ EndFunc
 ;                                      ↳ maximum number of iterations
 ;                  bIterativeVariance  - [Bool] (Default: False)
 ;                                      ↳ If True: compare the a priori variance with the a posteriori variance and iterate until both are approximately equal.
-;                                        In case that variance groups are specified in _la_adjustment_addObservation(), this is obsolete,
+;                                        In case that variance groups are specified in _la_adj_addObservation(), this is obsolete,
 ;                                        as a complete variance component estimate is performed.
 ;                  sDataType           - [String] (Default: "DOUBLE")
 ;                                      ↳ data type of the elements ("DOUBLE" or "FLOAT")
@@ -4439,9 +4439,9 @@ EndFunc
 ;                             "rank":  rank for the jacobian matrix (only if "SVD" is used)
 ;                           }
 ;                  Failure: Null and set @error to:
-;                           | 1: error during __la_adjustment_getVarComponents() (@extended: @error from __la_adjustment_getVarComponents())
-;                           |1X: error X during __la_adjustment_GaussNewton() (@extended: @extended from __la_adjustment_GaussNewton())
-;                           |2X: error X during __la_adjustment_LevenbergMarquardt() (@extended: @extended from __la_adjustment_LevenbergMarquardt())
+;                           | 1: error during __la_adj_getVarComponents() (@extended: @error from __la_adj_getVarComponents())
+;                           |1X: error X during __la_adj_GaussNewton() (@extended: @extended from __la_adj_GaussNewton())
+;                           |2X: error X during __la_adj_LevenbergMarquardt() (@extended: @extended from __la_adj_LevenbergMarquardt())
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-05
 ; Remarks .......: This function basically implements the Gauss-Markov model.
@@ -4453,20 +4453,20 @@ EndFunc
 Func _la_adjustment($mObservations, $mParams = Default, $sSolutionMethod = Default, $sNumSolutionMethode = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-9, $sDeriveMethod = "Central", $fLambda = 1, $iMaxIterations = 50, $bIterativeVariance = False, $sDataType = "DOUBLE")
 	Local $sVarComp, $aObs, $aTmp, $fStdDev, $mLstSq, $j = 1, $s0
 
-	If IsKeyword($mParams) = 1 Then $mParams = __la_adjustment_getParamList($mObservations)
+	If IsKeyword($mParams) = 1 Then $mParams = __la_adj_getParamList($mObservations)
 	If IsKeyword($sSolutionMethod) = 1 Then $sSolutionMethod = "GN"
 
-	Local $mVarComps = __la_adjustment_getVarComponents($mObservations)
+	Local $mVarComps = __la_adj_getVarComponents($mObservations)
 	If @error Then Return SetError(1, @error, Null)
 
 	If UBound($mVarComps) < 2 Then
 	; adjustment with a single variance component for all observations
 		For $j = 1 To 10
 			If $sSolutionMethod = "GN" Then
-				$mLstSq = __la_adjustment_GaussNewton($mObservations, $mParams, $sNumSolutionMethode, BitOr($iFlagsLstSq, $__LA_LSTSQ_R, $__LA_LSTSQ_REDUNDANCY), $fEpsTermination, $sDeriveMethod, $iMaxIterations, $sDataType)
+				$mLstSq = __la_adj_GaussNewton($mObservations, $mParams, $sNumSolutionMethode, BitOr($iFlagsLstSq, $__LA_LSTSQ_R, $__LA_LSTSQ_REDUNDANCY), $fEpsTermination, $sDeriveMethod, $iMaxIterations, $sDataType)
 				If @error Then Return SetError(10 + @error, @extended, Null)
 			Else
-				$mLstSq = __la_adjustment_LevenbergMarquardt($mObservations, $mParams, $fLambda, $sNumSolutionMethode, BitOr($iFlagsLstSq, $__LA_LSTSQ_R, $__LA_LSTSQ_REDUNDANCY), $fEpsTermination, $sDeriveMethod, $iMaxIterations, $sDataType)
+				$mLstSq = __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda, $sNumSolutionMethode, BitOr($iFlagsLstSq, $__LA_LSTSQ_R, $__LA_LSTSQ_REDUNDANCY), $fEpsTermination, $sDeriveMethod, $iMaxIterations, $sDataType)
 				If @error Then Return SetError(20 + @error, @extended, Null)
 			EndIf
 
@@ -4492,10 +4492,10 @@ Func _la_adjustment($mObservations, $mParams = Default, $sSolutionMethod = Defau
 		For $j = 1 To 10 ; ToDo: let the user decide which value
 
 			If $sSolutionMethod = "GN" Then
-				$mLstSq = __la_adjustment_GaussNewton($mObservations, $mParams, $sNumSolutionMethode, BitOr($iFlagsLstSq, $__LA_LSTSQ_R, $__LA_LSTSQ_REDUNDANCY), $fEpsTermination, $sDeriveMethod, $iMaxIterations, $sDataType)
+				$mLstSq = __la_adj_GaussNewton($mObservations, $mParams, $sNumSolutionMethode, BitOr($iFlagsLstSq, $__LA_LSTSQ_R, $__LA_LSTSQ_REDUNDANCY), $fEpsTermination, $sDeriveMethod, $iMaxIterations, $sDataType)
 				If @error Then Return SetError(10 + @error, @extended, Null)
 			Else
-				$mLstSq = __la_adjustment_LevenbergMarquardt($mObservations, $mParams, $fLambda, $sNumSolutionMethode, BitOr($iFlagsLstSq, $__LA_LSTSQ_R, $__LA_LSTSQ_REDUNDANCY), $fEpsTermination, $sDeriveMethod, $iMaxIterations, $sDataType)
+				$mLstSq = __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda, $sNumSolutionMethode, BitOr($iFlagsLstSq, $__LA_LSTSQ_R, $__LA_LSTSQ_REDUNDANCY), $fEpsTermination, $sDeriveMethod, $iMaxIterations, $sDataType)
 				If @error Then Return SetError(20 + @error, @extended, Null)
 			EndIf
 
@@ -4559,10 +4559,10 @@ EndFunc
 
 
 ; #FUNCTION# ====================================================================================================================
-; Name ..........: _la_adjustment_l1()
+; Name ..........: _la_adj_l1()
 ; Description ...: performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
-; Syntax ........: _la_adjustment_l1($mObs, [$mParams = Default, [$sSolutionMethod = Default, [$sNumSolutionMethod = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-9, [$fEpsL1Iteration = 0.001, [$sDeriveMethod = "Central", [$fLambda = 1, [$iMaxIterations = 50, [$bIterativeVariance = False, [$sDataType = "DOUBLE"]]]]]]]]]]])
-; Parameters ....: mObs               - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Syntax ........: _la_adj_l1($mObs, [$mParams = Default, [$sSolutionMethod = Default, [$sNumSolutionMethod = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-9, [$fEpsL1Iteration = 0.001, [$sDeriveMethod = "Central", [$fLambda = 1, [$iMaxIterations = 50, [$bIterativeVariance = False, [$sDataType = "DOUBLE"]]]]]]]]]]])
+; Parameters ....: mObs               - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  mParams            - [Map] (Default: Default)
 ;                                     ↳ Map of parameters with their upper-case names as key and their initial value as value
 ;                                       Default: parameters are determined using the observation equations and are automatically assigned the initial value 1.0
@@ -4595,7 +4595,7 @@ EndFunc
 ;                                     ↳ maximum number of iterations
 ;                  bIterativeVariance - [Bool] (Default: False)
 ;                                     ↳ If True: compare the a priori variance with the a posteriori variance and iterate until both are approximately equal.
-;                                       In case that variance groups are specified in _la_adjustment_addObservation(), this is obsolete,
+;                                       In case that variance groups are specified in _la_adj_addObservation(), this is obsolete,
 ;                                       as a complete variance component estimate is performed.
 ;                  sDataType          - [String] (Default: "DOUBLE")
 ;                                     ↳ data type of the elements ("DOUBLE" or "FLOAT")
@@ -4613,7 +4613,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: example_adjustment_l1.au3
 ; ===============================================================================================================================
-Func _la_adjustment_l1($mObs, $mParams = Default, $sSolutionMethod = Default, $sNumSolutionMethod = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-9, $fEpsL1Iteration = 0.001, $sDeriveMethod = "Central", $fLambda = 1, $iMaxIterations = 50, $bIterativeVariance = False, $sDataType = "DOUBLE")
+Func _la_adj_l1($mObs, $mParams = Default, $sSolutionMethod = Default, $sNumSolutionMethod = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-9, $fEpsL1Iteration = 0.001, $sDeriveMethod = "Central", $fLambda = 1, $iMaxIterations = 50, $bIterativeVariance = False, $sDataType = "DOUBLE")
 	Local $mObsOrig = $mObs
 	Local $mLstSq, $mLstSqOld, $aObsKeys, $aObs, $aV, $i, $j, $fEps
 	Local $mX, $mX_old = _blas_createVector(UBound($mParams), $sDataType)
@@ -4649,10 +4649,10 @@ Func _la_adjustment_l1($mObs, $mParams = Default, $sSolutionMethod = Default, $s
 EndFunc
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
-; Name ..........: __la_adjustment_LevenbergMarquardt()
+; Name ..........: __la_adj_LevenbergMarquardt()
 ; Description ...: performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Levenberg-Marquardt algorithm
-; Syntax ........: __la_adjustment_LevenbergMarquardt($mObservations, $mParams, [$fLambda = 1, [$sLstSqAlgo = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-7, [$sDeriveMethod = "Central", [$iMaxIterations = 50, [$sDataType = "DOUBLE"]]]]]]])
-; Parameters ....: mObservations   - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Syntax ........: __la_adj_LevenbergMarquardt($mObservations, $mParams, [$fLambda = 1, [$sLstSqAlgo = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-7, [$sDeriveMethod = "Central", [$iMaxIterations = 50, [$sDataType = "DOUBLE"]]]]]]])
+; Parameters ....: mObservations   - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  mParams         - [Map] (Default: Default)
 ;                                  ↳ Map of parameters with their upper-case names as key and their initial value as value
 ;                                    Default: parameters are determined using the observation equations and are automatically assigned the initial value 1.0
@@ -4692,7 +4692,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: No
 ; ===============================================================================================================================
-Func __la_adjustment_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSqAlgo = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-7, $sDeriveMethod = "Central", $iMaxIterations = 50, $sDataType = "DOUBLE")
+Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSqAlgo = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-7, $sDeriveMethod = "Central", $iMaxIterations = 50, $sDataType = "DOUBLE")
 	Local $iM = UBound($mObservations), _
 	      $iN = UBound($mParams), _
 		  $i, $j, $k, _     ; indices
@@ -4714,7 +4714,7 @@ Func __la_adjustment_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, 
 	Local $mLambdaI = _blas_createMatrix($iN, $iN, $sDataType)
 
 	; derive weights vector (or default if unweighted)
-	Local $mP = __la_adjustment_getWeights($mObservations, $sDataType)
+	Local $mP = __la_adj_getWeights($mObservations, $sDataType)
 
 	; build approximation parameter vector X0
 	$i = 1
@@ -4745,10 +4745,10 @@ Func __la_adjustment_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, 
 	For $i = 1 To $iMaxIterations - 1
 
 		; retrieve the jacobian matrix A for the parameters
-		__la_adjustment_getJacobiParams($mObservations, $mParams, $tA, $sDeriveMethod)
+		__la_adj_getJacobiParams($mObservations, $mParams, $tA, $sDeriveMethod)
 
 		; derive model predicted observation values y0
-		__la_adjustment_getYfromModel($mObservations, $mParams, $tY0)
+		__la_adj_getYfromModel($mObservations, $mParams, $tY0)
 
 		; calculate residual vector r = y - y0  --> y0
 		_blas_scal($mY0.ptr, -1, 0, 1, $iM)
@@ -4804,7 +4804,7 @@ Func __la_adjustment_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, 
 		Next
 
 		; derive model predicted observation values y0
-		__la_adjustment_getYfromModel($mObservations, $mParams1, $tY0)
+		__la_adj_getYfromModel($mObservations, $mParams1, $tY0)
 
 		; calculate residual vector r = y - y0  --> y0
 		_blas_scal($mY0.ptr, -1, 0, 1, $iM)
@@ -4845,8 +4845,8 @@ Func __la_adjustment_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, 
 	If $i >= $iMaxIterations Then Return SetError(5, $i, Null)
 
 	; last adjustment to get correct results without the enhancements for A and l (only necessary if vᵀPv, s0, sd_l, sdₓ, sd_v is needed)
-	__la_adjustment_getJacobiParams($mObservations, $mParams, $tA, $sDeriveMethod)
-	__la_adjustment_getYfromModel($mObservations, $mParams, $tY0)
+	__la_adj_getJacobiParams($mObservations, $mParams, $tA, $sDeriveMethod)
+	__la_adj_getYfromModel($mObservations, $mParams, $tY0)
 	_blas_scal($mY0.ptr, -1, 0, 1, $iM)	; Y - Y0 --> Y0
 	_blas_axpy($mY.ptr, $mY0.ptr, 1, 0, 0, 1, 1, $iM)
 	$mLstSq = _la_lstsq($mA, $mY0, $mP, $sLstSqAlgo, $iFlagsLstSq)
@@ -4890,10 +4890,10 @@ EndFunc
 
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
-; Name ..........: __la_adjustment_GaussNewton()
+; Name ..........: __la_adj_GaussNewton()
 ; Description ...: performs a adjustment calculation for a system of different [weighted] non-linear equations by using the Gauss-Newton algorithm
-; Syntax ........: __la_adjustment_GaussNewton($mObservations, $mParams, [$sLstSqAlgo = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-9, [$sDeriveMethod = "Central", [$iMaxIterations = 50, [$sDataType = "DOUBLE"]]]]]])
-; Parameters ....: mObservations   - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Syntax ........: __la_adj_GaussNewton($mObservations, $mParams, [$sLstSqAlgo = "QR", [$iFlagsLstSq = 0, [$fEpsTermination = 1e-9, [$sDeriveMethod = "Central", [$iMaxIterations = 50, [$sDataType = "DOUBLE"]]]]]])
+; Parameters ....: mObservations   - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  mParams         - [Map] (Default: Default)
 ;                                  ↳ Map of parameters with their upper-case names as key and their initial value as value
 ;                                    Default: parameters are determined using the observation equations and are automatically assigned the initial value 1.0
@@ -4927,7 +4927,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: No
 ; ===============================================================================================================================
-Func __la_adjustment_GaussNewton($mObservations, $mParams, $sLstSqAlgo = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-9, $sDeriveMethod = "Central", $iMaxIterations = 50, $sDataType = "DOUBLE")
+Func __la_adj_GaussNewton($mObservations, $mParams, $sLstSqAlgo = "QR", $iFlagsLstSq = 0, $fEpsTermination = 1e-9, $sDeriveMethod = "Central", $iMaxIterations = 50, $sDataType = "DOUBLE")
 	Local $iM = UBound($mObservations), _
 	      $iN = UBound($mParams), _
 		  $i, $j, _     ; indices
@@ -4944,7 +4944,7 @@ Func __la_adjustment_GaussNewton($mObservations, $mParams, $sLstSqAlgo = "QR", $
 	Local $mX0 = _blas_createVector($iN, $sDataType), $tX0 = $mX0.struct
 
 	; derive weights vector (or default if unweighted)
-	Local $mP = __la_adjustment_getWeights($mObservations, $sDataType)
+	Local $mP = __la_adj_getWeights($mObservations, $sDataType)
 
 	; build approximation parameter vector X0
 	$i = 1
@@ -4962,9 +4962,9 @@ Func __la_adjustment_GaussNewton($mObservations, $mParams, $sLstSqAlgo = "QR", $
 
 	For $i = 1 To $iMaxIterations - 1
 		; retrieve the jacobian matrix A for the parameters
-		__la_adjustment_getJacobiParams($mObservations, $mParams, $tA, $sDeriveMethod)
+		__la_adj_getJacobiParams($mObservations, $mParams, $tA, $sDeriveMethod)
 		; derive model predicted observation values y0
-		__la_adjustment_getYfromModel($mObservations, $mParams, $tY0)
+		__la_adj_getYfromModel($mObservations, $mParams, $tY0)
 
 		; calculate residual vector r = y - y0  --> y0
 		_blas_scal($mY0.ptr, -1, 0, 1, $iM)
@@ -5027,9 +5027,9 @@ EndFunc
 
 
 ; #FUNCTION# ====================================================================================================================
-; Name ..........: _la_adjustment_addObservation()
+; Name ..........: _la_adj_addObservation()
 ; Description ...: adds an observation to the adjustment system
-; Syntax ........: _la_adjustment_addObservation($mObservations, $sFunc, $fValue, [$fStdDev = Default, [$sS0Component = "s0"]])
+; Syntax ........: _la_adj_addObservation($mObservations, $sFunc, $fValue, [$fStdDev = Default, [$sS0Component = "s0"]])
 ; Parameters ....: mObservations - [Map] Integer key map which holds the observation arrays. (An empty map on the 1st call)
 ;                  sFunc         - [String] Observation equation as a string in AutoIt syntax.
 ;                                  Parameters to be estimated are inserted as normal words. (best to look at the examples)
@@ -5051,7 +5051,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: example_niv_net.au3, example_PointCalculation.au3, example_tachynetz.au3, example_circle.au3, example_tls.au3 
 ; ===============================================================================================================================
-Func _la_adjustment_addObservation(ByRef $mObservations, $sFunc, $fValue, $fStdDev = Default, $sS0Component = "s0")
+Func _la_adj_addObservation(ByRef $mObservations, $sFunc, $fValue, $fStdDev = Default, $sS0Component = "s0")
 	If Not IsMap($mObservations) Then
 		Local $mTmpObs[]
 		$mObservations = $mTmpObs
@@ -5075,10 +5075,10 @@ Func _la_adjustment_addObservation(ByRef $mObservations, $sFunc, $fValue, $fStdD
 EndFunc
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
-; Name ..........: __la_adjustment_getYfromModel()
+; Name ..........: __la_adj_getYfromModel()
 ; Description ...: determines the vector of model results based on the approximated parameters
-; Syntax ........: __la_adjustment_getYfromModel($mObservations, $mParams, $tStruct)
-; Parameters ....: mObservations - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Syntax ........: __la_adj_getYfromModel($mObservations, $mParams, $tStruct)
+; Parameters ....: mObservations - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  mParams       - [Map] Map of parameters with their upper-case names as key and their initial value as value
 ;                  tStruct       - [DllStruct] target memory area to write the values
 ; Return value ..: -
@@ -5089,7 +5089,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: No
 ; ===============================================================================================================================
-Func __la_adjustment_getYfromModel($mObservations, $mParams, ByRef $tStruct)
+Func __la_adj_getYfromModel($mObservations, $mParams, ByRef $tStruct)
 	Local $iIndex = 1, $sFunc, $aParams, $aObs, $sP
 
 	For $aObs In $mObservations
@@ -5110,10 +5110,10 @@ EndFunc
 
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
-; Name ..........: __la_adjustment_getJacobiParams()
+; Name ..........: __la_adj_getJacobiParams()
 ; Description ...: calculate the jacobian matrix out of the observation formulas and the approximated parameters
-; Syntax ........: __la_adjustment_getJacobiParams($mObservations, $mParams, $tStruct, [$sDeriveMethod = "Central"])
-; Parameters ....: mObservations - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Syntax ........: __la_adj_getJacobiParams($mObservations, $mParams, $tStruct, [$sDeriveMethod = "Central"])
+; Parameters ....: mObservations - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  mParams       - [Map] Map of parameters with their upper-case names as key and their initial value as value
 ;                  tStruct       - [DllStruct] target memory area to write the values
 ;                  sDeriveMethod - [String] (Default: "Central") algorithm to determine the 1st derivative
@@ -5131,7 +5131,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: No
 ; ===============================================================================================================================
-Func __la_adjustment_getJacobiParams(ByRef $mObservations, ByRef $mParams, ByRef $tStruct, $sDeriveMethod = "Central")
+Func __la_adj_getJacobiParams(ByRef $mObservations, ByRef $mParams, ByRef $tStruct, $sDeriveMethod = "Central")
 	Local $iIndex = 1 , $sParam, $aParams, $sP, $sFunc
 
 	For $sParam In MapKeys($mParams)
@@ -5161,9 +5161,9 @@ Func __la_adjustment_getJacobiParams(ByRef $mObservations, ByRef $mParams, ByRef
 EndFunc
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
-; Name ..........: __la_adjustment_setApproxValue()
+; Name ..........: __la_adj_setApproxValue()
 ; Description ...: sets/changes the initial value of a parameter in the parameter list
-; Syntax ........: __la_adjustment_setApproxValue($mParams, $sParam, $fValue)
+; Syntax ........: __la_adj_setApproxValue($mParams, $sParam, $fValue)
 ; Parameters ....: mParams - [Map] Map of parameters with their upper-case names as key and their initial value as value
 ;                  sParam  - [String] identifier (the name) of the parameter in the list
 ;                  fValue  - [Float] new initial value
@@ -5177,7 +5177,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: No
 ; ===============================================================================================================================
-Func __la_adjustment_setApproxValue(ByRef $mParams, $sParam, $fValue)
+Func __la_adj_setApproxValue(ByRef $mParams, $sParam, $fValue)
 	$sParam = StringUpper($sParam)
 	If Not MapExists($mParams, $sParam) Then Return SetError(1, 0, False)
 	$mParams[$sParam] = Number($fValue, 3)
@@ -5185,10 +5185,10 @@ Func __la_adjustment_setApproxValue(ByRef $mParams, $sParam, $fValue)
 EndFunc
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
-; Name ..........: __la_adjustment_getWeights()
+; Name ..........: __la_adj_getWeights()
 ; Description ...: extracts the vector (or diagonal matrix) of the observation weights from the observations
-; Syntax ........: __la_adjustment_getWeights($mObservations, [$sDataType = "DOUBLE"])
-; Parameters ....: mObservations - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Syntax ........: __la_adj_getWeights($mObservations, [$sDataType = "DOUBLE"])
+; Parameters ....: mObservations - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  sDataType     - [String] (Default: "DOUBLE")
 ;                                ↳ data type of the elements ("DOUBLE" or "FLOAT")
 ; Return value ..: Success: Default: observations are completely unweighted
@@ -5200,7 +5200,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: No
 ; ===============================================================================================================================
-Func __la_adjustment_getWeights(ByRef $mObservations, $sDataType = "DOUBLE")
+Func __la_adj_getWeights(ByRef $mObservations, $sDataType = "DOUBLE")
 	Local $bUnweighted = True
 	Local $aObs, $i = 1
 	Local $mP = _blas_createVector(UBound($mObservations, 1), $sDataType), $tP = $mP.struct
@@ -5219,10 +5219,10 @@ Func __la_adjustment_getWeights(ByRef $mObservations, $sDataType = "DOUBLE")
 EndFunc
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
-; Name ..........: __la_adjustment_getParamList()
+; Name ..........: __la_adj_getParamList()
 ; Description ...: extract the parameters to be estimated from the observation equations into a map
-; Syntax ........: __la_adjustment_getParamList($mObservations, [$fApproxDefault = 1])
-; Parameters ....: mObservations  - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Syntax ........: __la_adj_getParamList($mObservations, [$fApproxDefault = 1])
+; Parameters ....: mObservations  - [Map] set of observations as builded with _la_adj_addObservation()
 ;                  fApproxDefault - [Float] (Default: 1)
 ;                                 ↳ initial value for the parameter
 ; Return value ..: Success: [Map] {"param name": initial value, ....}
@@ -5235,7 +5235,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: No
 ; ===============================================================================================================================
-Func __la_adjustment_getParamList(ByRef $mObservations, $fApproxDefault = 1.0)
+Func __la_adj_getParamList(ByRef $mObservations, $fApproxDefault = 1.0)
 	Local $mParams[], $aObs, $iObs, $i, $aParams
 
 	For $iObs In MapKeys($mObservations)
@@ -5253,10 +5253,10 @@ Func __la_adjustment_getParamList(ByRef $mObservations, $fApproxDefault = 1.0)
 EndFunc
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
-; Name ..........: __la_adjustment_getVarComponents()
+; Name ..........: __la_adj_getVarComponents()
 ; Description ...: extracts a list of existing variance component groups in the system and calculates the weight of an observation
-; Syntax ........: __la_adjustment_getVarComponents($mObservations)
-; Parameters ....: mObservations - [Map] set of observations as builded with _la_adjustment_addObservation()
+; Syntax ........: __la_adj_getVarComponents($mObservations)
+; Parameters ....: mObservations - [Map] set of observations as builded with _la_adj_addObservation()
 ; Return value ..: [Map] list of variance component groups
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-05
@@ -5265,7 +5265,7 @@ EndFunc
 ; Link ..........:
 ; Example .......: No
 ; ===============================================================================================================================
-Func __la_adjustment_getVarComponents(ByRef $mObservations)
+Func __la_adj_getVarComponents(ByRef $mObservations)
 	Local $aObs, $iObs, $aTmp[3] = [1,0,0]
 
 	Local $mVarComps[]
@@ -5288,7 +5288,7 @@ EndFunc
 #Region additional helper functions
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_adj_showResult()
-; Description ...: formats the results of _la_adjustment more clearly and display them in a window
+; Description ...: formats the results of _la_adj more clearly and display them in a window
 ; Syntax ........: _la_adj_showResult($mLstSq, $sWhat, [$sTitle = Default])
 ; Parameters ....: mLstSq - [Map] result of a adjustment as returned by _la_adjustment()
 ;                  sWhat  - [String] element of the result map, which should displayed

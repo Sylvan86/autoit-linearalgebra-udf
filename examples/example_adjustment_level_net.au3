@@ -41,25 +41,25 @@ Global $aMeasurements[9][4] = [ _
 Global $sFunc, $mObs
 For $i = 0 To 8
 	$sFunc = StringFormat("H%d - H%d", $aMeasurements[$i][1], $aMeasurements[$i][0])
-	_la_adjustment_addObservation($mObs, $sFunc, $aMeasurements[$i][2], sqrt($aMeasurements[$i][3]))
+	_la_adj_addObservation($mObs, $sFunc, $aMeasurements[$i][2], sqrt($aMeasurements[$i][3]))
 Next
 
 ; The height of point 6 is known and is considered fixed. Therefore, a pseudo-observation with this height and a very small standard deviation is added for H6.
 ; With this the absolute height of the other points can be directly calculated.
-_la_adjustment_addObservation($mObs, "H6", 67.228, 1e-5)
+_la_adj_addObservation($mObs, "H6", 67.228, 1e-5)
 
 ; the network structure results in additional conditions (loops must sum up to 0), which further increase the quality of the solution.
 ; These are formulated and added as pseudo-observations. (for seeing effect try once with the pseudo-observations and once without)
-_la_adjustment_addObservation($mObs, "(H2 - H1) + (H3 - H2) - (H3 - H1)", 0, 1e-5)                                     ; I
-_la_adjustment_addObservation($mObs, "(H4 - H2) - (H4 - H3) - (H3 - H2)", 0, 1e-5)                                     ; II
-_la_adjustment_addObservation($mObs, "(H4 - H3) + (H5 - H4) - (H5 - H3)", 0, 1e-5)                                     ; III
-_la_adjustment_addObservation($mObs, "(H5 - H3) + (H6 - H5) - (H6 - H3)", 0, 1e-5)                                     ; IV
-_la_adjustment_addObservation($mObs, "(H3 - H1) + (H4 - H3) - (H2 - H1) - (H4 - H2)", 0, 1e-5)                         ; I, II
-_la_adjustment_addObservation($mObs, "(H3 - H1) + (H5 - H3) - (H5 - H4) - (H4 - H2) - (H2 - H1)", 0, 1e-5)             ; I, II, III
-_la_adjustment_addObservation($mObs, "(H3 - H1) + (H6 - H3) - (H6 - H5) - (H5 - H4) - (H4 - H2) - (H2 - H1)", 0, 1e-5) ; I,II,III,IV
-_la_adjustment_addObservation($mObs, "(H5 - H3) - (H5 - H4) - (H4 - H2) + (H3 - H2)", 0, 1e-5)                         ; II, III
-_la_adjustment_addObservation($mObs, "(H6 - H3) - (H6 - H5) - (H5 - H4) - (H4 - H2) + (H3 - H2)", 0, 1e-5)             ; II, III, IV
-_la_adjustment_addObservation($mObs, "(H6 - H3) - (H6 - H5) - (H5 - H4) - (H4 - H3)", 0, 1e-5)                         ; III, IV
+_la_adj_addObservation($mObs, "(H2 - H1) + (H3 - H2) - (H3 - H1)", 0, 1e-5)                                     ; I
+_la_adj_addObservation($mObs, "(H4 - H2) - (H4 - H3) - (H3 - H2)", 0, 1e-5)                                     ; II
+_la_adj_addObservation($mObs, "(H4 - H3) + (H5 - H4) - (H5 - H3)", 0, 1e-5)                                     ; III
+_la_adj_addObservation($mObs, "(H5 - H3) + (H6 - H5) - (H6 - H3)", 0, 1e-5)                                     ; IV
+_la_adj_addObservation($mObs, "(H3 - H1) + (H4 - H3) - (H2 - H1) - (H4 - H2)", 0, 1e-5)                         ; I, II
+_la_adj_addObservation($mObs, "(H3 - H1) + (H5 - H3) - (H5 - H4) - (H4 - H2) - (H2 - H1)", 0, 1e-5)             ; I, II, III
+_la_adj_addObservation($mObs, "(H3 - H1) + (H6 - H3) - (H6 - H5) - (H5 - H4) - (H4 - H2) - (H2 - H1)", 0, 1e-5) ; I,II,III,IV
+_la_adj_addObservation($mObs, "(H5 - H3) - (H5 - H4) - (H4 - H2) + (H3 - H2)", 0, 1e-5)                         ; II, III
+_la_adj_addObservation($mObs, "(H6 - H3) - (H6 - H5) - (H5 - H4) - (H4 - H2) + (H3 - H2)", 0, 1e-5)             ; II, III, IV
+_la_adj_addObservation($mObs, "(H6 - H3) - (H6 - H5) - (H5 - H4) - (H4 - H3)", 0, 1e-5)                         ; III, IV
 
 ; do the adjustment and show the results (since there is a linear functional relationship, we do not need approximate values for the parameters)
 Global $mLstSq = _la_adjustment($mObs, Default, "GN", "QR", $iFlags)

@@ -21,27 +21,27 @@ Global $aPoints[4][2] = [ _
 Global $sFunc, $mObs
 For $i = 0 To UBound($aPoints) - 1
 	; add the point coordinates as observations for the target parameters
-	_la_adjustment_addObservation($mObs, StringFormat("X_%i", $i + 1), $aPoints[$i][0], 0.3)
-	_la_adjustment_addObservation($mObs, StringFormat("Y_%i", $i + 1), $aPoints[$i][1], 0.3)
+	_la_adj_addObservation($mObs, StringFormat("X_%i", $i + 1), $aPoints[$i][0], 0.3)
+	_la_adj_addObservation($mObs, StringFormat("Y_%i", $i + 1), $aPoints[$i][1], 0.3)
 
 	; formulate the condition that the points lie on a circle as an equation.
 	$sFunc = StringFormat("sqrt((X_m - X_%i)^2 + (Y_m - Y_%i)^2) - R", $i + 1, $i + 1)
-	_la_adjustment_addObservation($mObs, $sFunc, 0, 0.01)
+	_la_adj_addObservation($mObs, $sFunc, 0, 0.01)
 Next
 
 ; create parameter list and add approximate values for the parameters.
-Global $mParams = __la_adjustment_getParamList($mObs)
-__la_adjustment_setApproxValue($mParams, "X_M", 30)
-__la_adjustment_setApproxValue($mParams, "Y_M", 20)
-__la_adjustment_setApproxValue($mParams, "R", 1)
+Global $mParams = __la_adj_getParamList($mObs)
+__la_adj_setApproxValue($mParams, "X_M", 30)
+__la_adj_setApproxValue($mParams, "Y_M", 20)
+__la_adj_setApproxValue($mParams, "R", 1)
 For $i = 0 To 3
-	__la_adjustment_setApproxValue($mParams, StringFormat("X_%i", $i + 1), $aPoints[$i][0])
-	__la_adjustment_setApproxValue($mParams, StringFormat("Y_%i", $i + 1), $aPoints[$i][1])
+	__la_adj_setApproxValue($mParams, StringFormat("X_%i", $i + 1), $aPoints[$i][0])
+	__la_adj_setApproxValue($mParams, StringFormat("Y_%i", $i + 1), $aPoints[$i][1])
 Next
 
 ; do the adjustment and show the results (since there is a linear functional relationship, we do not need approximate values for the parameters)
-Global $mLstSq = _la_adjustment($mObs, $mParams, "GM", "QR", $iFlags)
-If @error Then Exit MsgBox(16, "error", "error during _la_adjustment()" & @CRLF & "@error: " & @error & @CRLF & "@extended: " & @extended)
+Global $mLstSq = _la_adj($mObs, $mParams, "GM", "QR", $iFlags)
+If @error Then Exit MsgBox(16, "error", "error during _la_adj()" & @CRLF & "@error: " & @error & @CRLF & "@extended: " & @extended)
 
 ConsoleWrite("s0: " & $mLstSq.s0 & @CRLF)
 ConsoleWrite("r^TPr: " & $mLstSq.r2sum & @CRLF)

@@ -38,21 +38,21 @@ Global $sFunc, $mObs ; the variable holding the observations
 For $i = 0 To 3
 	; add distance observation:  sqrt((y_n - y_i)^2 + (x_n - x_i)^2)
 	$sFunc = StringFormat("sqrt((x_n - %.16g)^2 + (y_n - %.16g)^2)", $aFixedPoints[$i][1], $aFixedPoints[$i][0]) ; functional relationship between observation an target parameters
-	_la_adjustment_addObservation($mObs, $sFunc, $aDistances[$i], 0.01, "sD") ; "sD" means: observation belongs to the observation group “sD”. This is used to examine the accuracy of the groups independently (variance component estimation)
+	_la_adj_addObservation($mObs, $sFunc, $aDistances[$i], 0.01, "sD") ; "sD" means: observation belongs to the observation group “sD”. This is used to examine the accuracy of the groups independently (variance component estimation)
 	; 0.01 means: expected  standard deviation of the observation - estimate how accurate the observation is. Specified in [m]
 
 	; add direction observation: 200 / Pi * arctan( (x_n - x_i) / (y_n - y_i)) - r0
 	; r0 = initial direction on the viewpoint
 	$sFunc = StringFormat('_calcDirection_gon( x_n, y_n, %.16g, %.16g, r0)', $aFixedPoints[$i][1], $aFixedPoints[$i][0] ) ; functional relationship between observation an target parameters
-	_la_adjustment_addObservation($mObs, $sFunc, $aDirections[$i], 0.001, "sR") ; "sR" means: observation belongs to the observation group “sD”. This is used to examine the accuracy of the groups independently (variance component estimation)
+	_la_adj_addObservation($mObs, $sFunc, $aDirections[$i], 0.001, "sR") ; "sR" means: observation belongs to the observation group “sD”. This is used to examine the accuracy of the groups independently (variance component estimation)
 	; 0.001 means: expected  standard deviation of the observation - estimate how accurate the observation is. Specified in [gon]
 Next
 
 ; Approximate values for the new point coordinates and the direction (e.g. can be derived from the triangle P4-P3-N)
-Global $mParams = __la_adjustment_getParamList($mObs)
-__la_adjustment_setApproxValue($mParams, "x_n", 725.8)
-__la_adjustment_setApproxValue($mParams, "y_n", 306.9)
-__la_adjustment_setApproxValue($mParams, "r0", 277)
+Global $mParams = __la_adj_getParamList($mObs)
+__la_adj_setApproxValue($mParams, "x_n", 725.8)
+__la_adj_setApproxValue($mParams, "y_n", 306.9)
+__la_adj_setApproxValue($mParams, "r0", 277)
 
 ; do the adjustment and show the results
 Global $mLstSq = _la_adjustment($mObs, $mParams, "GN", "QR", $iFlags)
