@@ -1,5 +1,5 @@
 ; load the BLAS/LAPACK-Dll (MUST done BEFORE #include "LinearAlgebra"!)
-$__g_hBLAS_DLL = DllOpen(FileGetLongName("../clblast.dll"))
+$__g_hBLAS_DLL = DllOpen(FileGetLongName("../libopenblas.dll"))
 
 #include "../LinearAlgebra.au3"
 
