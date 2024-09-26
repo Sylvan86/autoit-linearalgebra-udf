@@ -569,7 +569,7 @@ EndFunc
 ;                  _la_display($mTransposed, "transposed")
 ;                  ConsoleWrite(@error & @TAB & @extended & @CRLF)
 ; ===============================================================================================================================
-Func _la_transpose(ByRef $mMatrix, $fAlpha = 1, $bInPlace = False)
+Func _la_transpose($mMatrix, $fAlpha = 1, $bInPlace = False)
 	; direct AutoIt-type input
 	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
 
@@ -1344,6 +1344,87 @@ Func _la_inverse($mMatrix, $bInPlace = False)
 	_lp_getri($mMatrix, $tIPIV)
 	Return @error ? SetError(20 + @error, @extended, $bInPlace ? False : Null) : ($bInPlace ? True : $mMatrix)
 EndFunc
+
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _la_pseudoInverse()
+; Description ...: calculate the Moore-Penrose pseudo inverse of a matrix
+; Syntax ........: _la_pseudoInverse($mMatrix, [$fTolerance = Default, [$bOverwrite = False]])
+; Parameters ....: mMatrix    - [Map] matrix as a map/array/definition string
+;                  fTolerance - [Float] (Default: Default)
+;                             ↳ threshold value up to which an absolute value is regarded as 0 (singular value or not)
+;                  bOverwrite - [Bool] (Default: False)
+;                             ↳ True: mMatrix gets overwritten
+;                               False: mMatrix remains untouched
+; Return value ..: Success: [Map] pseudo inverse of mMatrix as a map
+;                  Failure: Null and set @error to:
+;                           | 1: invalid value for mMatrix
+;                           |1X: error X during _lp_gesvd() (@extended: @extended from _lp_gesvd() )
+;                           |2X: error X during _blas_copy() (@extended: @extended from _blas_copy() )
+;                           |3X: error X during 1st _blas_gemm() (@extended: @extended from _blas_gemm() )
+;                           |4X: error X during 2nd _blas_gemm() (@extended: @extended from _blas_gemm() )
+; Author ........: AspirinJunkie
+; Modified.......: 2024-09-26
+; Remarks .......: algorithm:
+;                  - calculate SVD decomposition:  A = U * Σ * Vᵀ
+;                  - calculate Σ⁺ by invert every element Σᵢ of Σ if |Σᵢ| > 0
+;                  - calculate A⁺ = V Σ⁺ Uᵀ
+; Related .......: _lp_gesvd()
+; Link ..........:
+; Example .......: Yes
+;                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
+;                  _la_display($mInverse)
+; ===============================================================================================================================
+Func _la_pseudoInverse($mMatrix, $fTolerance = Default, $bOverwrite = False)
+	; direct AutoIt-type input
+	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
+
+	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
+	If Not (IsMap($mMatrix) And MapExists($mMatrix, "ptr")) Then Return SetError(1, 0, $bOverwrite ? False : Null)
+
+	; determine datatype and shape of the matrices
+	Local $sDataType = $mMatrix.datatype, _
+	      $iM = $mMatrix.rows, $iN = $mMatrix.cols, _
+	      $iMS = $iM, $iNS = $iN, _ ; dimension of Sigma
+	      $iMU = $iM, $iNU = $iM, _ ; dimension of U
+	      $iNV = $iN    ; dimension of V
+
+	; calculate tolerance
+	If IsKeyword($fTolerance) = 1 Then $fTolerance = 10 * ($sDataType = "FLOAT" ? $f_LA_FLT_PREC : $f_LA_DBL_PREC)
+
+	; prevent overwrite if choosed
+	If Not $bOverwrite Then $mMatrix = _la_duplicate($mMatrix)
+
+	Local $mSVD = _lp_gesvd($mMatrix)
+	If @error Then Return SetError(@error + 10, @extended, Null)
+
+	; calculate Σ⁺    ( |Σᵢ| > 0 ? 1 / Σᵢ : 0  )
+	Local $mS = $mSVD.S
+	Local $tSigma = $mS.struct, $fValue
+	; ToDo: if anyone has a idea how to do this (especially with the threshold) directly with BLAS/LAPACK - do it!
+	For $i = 1 To $iM
+		$fValue = DllStructGetData($tSigma, 1, $i)
+		DllStructSetData($tSigma, 1, Abs($fValue) > $fTolerance ? 1.0 / $fValue : $fValue, $i)
+	Next
+
+	; Σ⁺ vector to diagonal matrix
+	Local $mSigmaPlus = _blas_createMatrix($iMS, $iNS, $sDataType)
+	_blas_copy($tSigma, 0, 1, 0, $iMS + 1, $iMS, $mSigmaPlus.ptr)
+	If @error Then Return SetError(20 + @error, @extended, Null)
+
+	; V * Σ⁺ --> C
+	Local $mC = _blas_createMatrix($iNV, $iNS, $sDataType)
+	_blas_gemm($mSVD.VT.ptr, $mSigmaPlus.ptr, $mC.ptr, 1.0, 0.0, "T", "N", $iNV, $iNS, $iMS > $iNS ? $iNS : $iMS, $iNV, $iMS, $iNV, $sDataType)
+	If @error Then Return SetError(30 + @error, @extended, Null)
+
+	; C * Uᵀ
+	Local $mInverse = _blas_createMatrix($iNV, $iMU, $sDataType)
+	_blas_gemm($mC.ptr, $mSVD.U.ptr, $mInverse.ptr, 1.0, 0.0, "N", "T", $iNV, $iMU, $iNS, $iNV, $iNU, $iNV, $sDataType)
+	If @error Then Return SetError(40 + @error, @extended, Null)
+
+	Return $mInverse
+EndFunc
+
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_sum()

@@ -148,7 +148,6 @@ Global Const $tBLASCHAR4 = DllStructCreate("CHAR"), $pBLASCHAR4 = DllStructGetPt
 ; Example .......: No
 ; ===============================================================================================================================
 Func _blas_LoadBlasDll($sDllPath = @ScriptDir & "\libopenblas.dll")
-	ConsoleWrite($sDllPath & @CRLF)
 	If Not FileExists($sDllPath) Then Return SetError(1, 0, $sDllPath)
 
 	; necessary because some dlls need to find other module in other dll-files
