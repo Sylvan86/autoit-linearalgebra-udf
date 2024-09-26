@@ -54,6 +54,7 @@
 ;
 ; ---- unary operations ----
 ; _la_inverse                   - calculates the inverse of a matrix
+; _la_pseudoInverse             - calculate the Moore-Penrose pseudo inverse of a matrix
 ; _la_sum                       - calculates the sum of the elements of a matrix, vector or parts thereof
 ; _la_asum                      - calculate the sum of the absolute(!) values of a matrix/vector
 ; _la_amin                      - finds the first element having the minimum absolute(!) value
@@ -849,12 +850,14 @@ EndFunc   ;==>_la_VectorToDiag
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_display()
 ; Description ...: displays a matrix/vector map, similar to _ArrayDisplay
-; Syntax ........: _la_display($mData, [$sTitle = "", [$iFlags = 64]])
-; Parameters ....: mData  - [Map] matrix/vector as a map/array/definition string
-;                  sTitle - [String] (Default: "")
-;                         ↳ the window title to be displayed
-;                  iFlags - [UInt] (Default: 64)
-;                         ↳ display options - see $iFlags for _ArrayDisplay()
+; Syntax ........: _la_display($mData, [$sTitle = "", [iDecimalPlaces = 5, [$iFlags = 64]]])
+; Parameters ....: mData          - [Map] matrix/vector as a map/array/definition string
+;                  sTitle         - [String] (Default: "")
+;                                 ↳ the window title to be displayed
+;                  iDecimalPlaces - [UInt] (Default: 5)
+;                                   number of decimal places to which the figures are to be rounded
+;                  iFlags         - [UInt] (Default: 64)
+;                                 ↳ display options - see $iFlags for _ArrayDisplay()
 ; Return value ..: Success: SetError(@error + 10, @extended, $mRet)
 ;                  Failure: $mRet and set @error to:
 ;                           | 1X: error X during _blas_display (@extended: @extended from _blas_display())
@@ -868,14 +871,14 @@ EndFunc   ;==>_la_VectorToDiag
 ;                  Global $mA = _la_fromArray('[[1,2,3],[4,5,6],[7,8,9]]')
 ;                  _la_display($mA, "from AutoIt Array")
 ; ===============================================================================================================================
-Func _la_display($mData, $sTitle = "", $iFlags = 64)
+Func _la_display($mData, $sTitle = "", $iDecimalPlaces = 5, $iFlags = 64)
 	; direct AutoIt-type input
 	If IsArray($mData) Or IsString($mData) Then $mData = _blas_fromArray($mData)
 
 	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
 	If Not MapExists($mData, "ptr") Then Return SetError(1, 0, False)
 
-	Local $mRet = _blas_display($mData, $sTitle, $iFlags)
+	Local $mRet = _blas_display($mData, $sTitle, $iDecimalPlaces, $iFlags)
 	Return SetError(@error + 10, @extended, $mRet)
 EndFunc
 
@@ -1372,8 +1375,8 @@ EndFunc
 ; Related .......: _lp_gesvd()
 ; Link ..........:
 ; Example .......: Yes
-;                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
-;                  _la_display($mInverse)
+                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
+                  _la_display($mInverse)
 ; ===============================================================================================================================
 Func _la_pseudoInverse($mMatrix, $fTolerance = Default, $bOverwrite = False)
 	; direct AutoIt-type input

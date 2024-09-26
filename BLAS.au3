@@ -835,12 +835,14 @@ EndFunc   ;==>_blas_duplicate
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _blas_display()
 ; Description ...: displays a matrix/vector map, similar to _ArrayDisplay
-; Syntax ........: _blas_display($mData, [$sTitle = "", [$iFlags = 64]])
-; Parameters ....: mData  - [Map] a matrix/vector as a map, as structured here in the UDF
-;                  sTitle - [String] (Default: "")
-;                         ↳ the window title to be displayed
-;                  iFlags - [Int] (Default: 64)
-;                         ↳ display options - see $iFlags for _ArrayDisplay()
+; Syntax ........: _blas_display($mData, [$sTitle = "", [iDecimalPlaces = 5, [$iFlags = 64]]])
+; Parameters ....: mData          - [Map] a matrix/vector as a map, as structured here in the UDF
+;                  sTitle         - [String] (Default: "")
+;                                 ↳ the window title to be displayed
+;                  iDecimalPlaces - [UInt] (Default: 5)
+;                                 ↳ number of decimal places to which the figures are to be rounded
+;                  iFlags         - [Int] (Default: 64)
+;                                 ↳ display options - see $iFlags for _ArrayDisplay()
 ; Return value ..: Success: return value of _ArrayDisplay
 ;                  Failure: False and set @error to:
 ;                           | 1: error during _blas_toArray() (@extended: @error from _blas_toArray)
@@ -853,9 +855,24 @@ EndFunc   ;==>_blas_duplicate
 ; Example .......: Yes
 ;                  _blas_display(_blas_fromArray("[[1,2,3],[4,5,6],[7,8,9]]"))
 ; ===============================================================================================================================
-Func _blas_display($mData, $sTitle = "", $iFlags = 64)
+Func _blas_display($mData, $sTitle = "", $iDecimalPlaces = 5, $iFlags = 64)
 	Local $aArray = _blas_toArray($mData)
 	If @error Then Return SetError(1, @error, False)
+
+	If $iDecimalPlaces > 0 Then
+		If UBound($aArray, 0) = 1 Then
+			For $i = 0 To UBound($aArray, 1) - 1
+				$aArray[$i] = StringFormat("%." & $iDecimalPlaces & "g", $aArray[$i])
+			Next
+		Else
+			For $i = 0 To UBound($aArray, 1) - 1
+				For $j = 0 To UBound($aArray, 2) - 1
+					$aArray[$i][$j] = StringFormat("%." & $iDecimalPlaces & "g", $aArray[$i][$j])
+				Next
+			Next
+		EndIf
+	EndIf
+
 	Local $iRet = _ArrayDisplay($aArray, $sTitle, "", $iFlags)
 	Return @error ? SetError(2, @error, $iRet) : $iRet
 EndFunc
