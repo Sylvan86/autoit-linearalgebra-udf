@@ -1375,8 +1375,8 @@ EndFunc
 ; Related .......: _lp_gesvd()
 ; Link ..........:
 ; Example .......: Yes
-                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
-                  _la_display($mInverse)
+;                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
+;                  _la_display($mInverse)
 ; ===============================================================================================================================
 Func _la_pseudoInverse($mMatrix, $fTolerance = Default, $bOverwrite = False)
 	; direct AutoIt-type input
