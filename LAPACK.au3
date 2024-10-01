@@ -50,6 +50,7 @@
 ; _lp_getsls - solves overdetermined or underdetermined linear system A * X = B using tall-skinny/short-wide QR/LQ factorization
 ; _lp_gelss  - solves overdetermined or underdetermined linear system A * X = B using SVD factorization
 ; _lp_gelsy  - solves overdetermined or underdetermined linear system A * X = B using QR decomposition with column pivoting
+; _lp_geqrs  - solves overdetermined or underdetermined linear system A * X = B using the results of the QR decomposition from _lp_geqrf()
 ;
 ; ---- auxiliary functions ----
 ; _lp_lassq  - calculate the sum of squares of elements of a matrix/vector
@@ -65,7 +66,6 @@
 ; _lp_lauu2  - computes the product U * Uᵀ or Lᵀ * L, where U or L are triangular matrices (unblocked variant)
 ; _lp_lamch  - determines float/double precision machine parameters
 ; ===============================================================================================================================
-
 
 #Region Inverse
 
