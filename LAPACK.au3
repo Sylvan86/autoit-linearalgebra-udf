@@ -21,6 +21,7 @@
 ; ---- Inverse ----
 ; _lp_getri  - computes the inverse of a matrix using the LU factorization computed by _lp_getrf()
 ; _lp_potri  - computes the inverse of a real symmetric positive definite matrix A using the Cholesky factorization computed by _lp_potrf()
+; _lp_trtri  - computes the inverse of a upper or lower triangular matrix
 ;
 ; ---- factorization ----
 ; _lp_geqr   - computes a QR factorization of a real matrix A using the tiled (tall skinny) QR algorithm
@@ -66,6 +67,7 @@
 ; _lp_lauu2  - computes the product U * Uᵀ or Lᵀ * L, where U or L are triangular matrices (unblocked variant)
 ; _lp_lamch  - determines float/double precision machine parameters
 ; ===============================================================================================================================
+
 
 #Region Inverse
 
@@ -177,7 +179,7 @@ EndFunc
 ;                  _lp_potrf($mA, "U") ; do a cholesky factorization
 ;                  _lp_potri($mA, "U") ; calc the inverse out of the cholesky result
 ;                  $mA.storageType = BitOR($mA.storageType, $__g_BLAS_STYPE_SYMMETRIC + $__g_BLAS_STYPE_UPPER) ; A is symmetric and only upper part is stored here
-;                  _blas_display($mA, "Transposed A")
+;                  _blas_display($mA, "inverse of A")
 ; ===============================================================================================================================
 Func _lp_potri($mMatrix, $cUPLO = "L", $iN = Default, $iLDA = Default, $sDataType = "DOUBLE")
 	Local $pA ; pointer to the data in memory
@@ -209,6 +211,73 @@ Func _lp_potri($mMatrix, $cUPLO = "L", $iN = Default, $iLDA = Default, $sDataTyp
 	)
 	If @error Then Return SetError(1, @error, False)
 	Return $aDLL[5] = 0 ? True : SetError(2, $aDLL[5], False)
+EndFunc
+
+
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_trtri()
+; Description ...: computes the inverse of a upper or lower triangular matrix
+; Syntax ........: _lp_trtri($mMatrix, [$cUPLO = "U", [$cDIAG = "N", [$iN = Default, [$iLDA = $iN, [$sDataType = "DOUBLE"]]]]])
+; Parameters ....: mMatrix   - [Map] matrix A as a map, DllStruct or pointer (will be overwritten)
+;                  cUPLO     - [Char] (Default: "U")
+;                            ↳ "U": upper triangular parts of A are used
+;                              "L": lower triangular parts of A are used
+;                  cDIAG     - [Char] (Default: "N")
+;                            ↳ "N": A is non-unit triangular
+;                              "U": A is unit triangular (diagonal values = 1)
+;                  iN        - [Int] (Default: Default)
+;                            ↳ order of matrix A
+;                  iLDA      - [Int] (Default: $iN)
+;                            ↳ leading dimension of the matrix A
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible
+; Return value ..: Success: True (@extended = INFO from trtri())
+;                  Failure: False and set @error to:
+;                           | 1: error during DllCall of trtri (@extended: @error from DllCall)
+;                           | 2: error inside call of trtri (@extended: INFO-value from trtri)
+; Author ........: AspirinJunkie
+; Modified.......: 2024-10-01
+; Remarks .......:
+; Related .......:
+; Link ..........: https://www.netlib.org/lapack/explore-html/de/d61/group__trtri_ga2da4f285dfccde2ef75221144799a3ec.html#ga2da4f285dfccde2ef75221144799a3ec
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[19,-80,-55,-58,21],[0,-92,-67,-94,-25],[0,0,77,-7,40],[0,0,0,12,97],[0,0,0,0,43]]")
+;                  _lp_trtri($mA, "U")
+;                  _blas_display($mA, "Inverse(A)")
+; ===============================================================================================================================
+Func _lp_trtri($mMatrix, $cUPLO = "U", $cDIAG  = "N", $iN = Default, $iLDA = $iN, $sDataType = "DOUBLE")
+	Local $pA ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mMatrix)
+			$sDataType = $mMatrix.datatype
+			If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.rows
+			If IsKeyword($iLDA) = 1 Then $iLDA = $iN
+			$pA = $mMatrix.ptr
+		Case IsPtr($mMatrix)
+			$pA = $mMatrix
+		Case IsDllStruct($mMatrix)
+			$pA = DllStructGetPtr($mMatrix)
+	EndSelect
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	; set char buffers and input healing
+	DllStructSetData($tBLASCHAR1, 1, $cUPLO = "L" ? "L" : "U")
+	DllStructSetData($tBLASCHAR2, 1, $cDIAG  = "N" ? "N" : "U")
+
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "trtri", _
+		"PTR", $pBLASCHAR1, _               ; UPLO
+		"PTR", $pBLASCHAR2, _               ; DIAG
+		"INT*", $iN, _                      ; N - order of A
+		"PTR",  $pA, _                      ; A
+		"INT*", $iLDA, _                    ; lda
+		"INT*", 0 _ 			            ; INFO
+	)
+	If @error Then Return SetError(1, @error, False)
+	Return $aDLL[6] = 0 ? True : SetError(2, $aDLL[6], False)
 EndFunc
 
 #EndRegion
@@ -1449,7 +1518,7 @@ EndFunc
 ; Description ...: computes the solution to a system of linear equations A * X = B
 ;                  where A is a packed(!) band matrix by using LU decomposition
 ; Syntax ........: _lp_gbsv($mAB, $mB, [$iKL = 0, [$iKU = 0, [$iN = Default, [$iNRHS = 1, [$iLDAB = 2 * $iKL + $iKU + 1, [$iLDB = Default, [$sDataType = Default]]]]]]])
-; Parameters ....: mAB       - [Map] packed(!) band matrix A as a map, DllStruct or pointer (will be overwritten)
+; Parameters ....: mAB       - [Map] band matrix A in "General-Band Storage Mode" (NOT "BLAS-General-Band Storage Mode") as a map, DllStruct or pointer (will be overwritten)
 ;                  mB        - [Map] vector/matrix N × NRHS b as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the solution values X
 ;                  iKL       - [Int] (Default: 0)
@@ -1471,14 +1540,15 @@ EndFunc
 ;                           | 1: error during first DllCall of gbsv (@extended: @error from DllCall)
 ;                           | 2: error inside first call of gbsv (@extended: INFO-value from gbsv)
 ; Author ........: AspirinJunkie
-; Modified.......: 2024-09-02
-; Remarks .......:
-; Related .......:
+; Modified.......: 2024-10-01
+; Remarks .......: mAB must be stored in "General-Band Storage Mode", for this, until now the only way is to use __blas_GBSfromArray()
+; Related .......: __blas_GBSfromArray()
 ; Link ..........: https://www.netlib.org/lapack/explore-html/db/df8/group__gbsv_gaff55317eb3aed2278a85919a488fec07.html#gaff55317eb3aed2278a85919a488fec07
 ; Example .......: Yes
-;                  Global $mA = _blas_fromArray("[[1,0,0,0,0],[0,2,0,0,0],[0,0,3,0,0],[0,0,0,4,0],[0,0,0,0,5]]", $__g_BLAS_STYPE_BAND + $__g_BLAS_STYPE_PACKED + $__g_BLAS_STYPE_MATRIX, "DOUBLE", 0, 0)
-;                  Global $mB = _blas_fromArray("[9,5,5,6,2]")
-;                  _lp_gbsv($mA, $mB, 0, 0)
+;                  Global $aA[][] = [[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]
+;                  Global $mA = __blas_GBSfromArray($aA, 1, 2)
+;                  Global $mB = _blas_fromArray("[[1,0,0,0,0],[0,1,0,0,0],[0,0,1,0,0],[0,0,0,1,0],[0,0,0,0,1]]")
+;                  _lp_gbsv($mA, $mB, 1, 2)
 ;                  _blas_display($mB, "solution vector/matrix x")
 ; ===============================================================================================================================
 Func _lp_gbsv($mAB, $mB, $iKL = 0, $iKU = 0, $iN = Default, $iNRHS = Default, $iLDAB = 2 * $iKL + $iKU + 1, $iLDB = Default, $sDataType = Default)
