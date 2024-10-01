@@ -37,7 +37,7 @@
 ; _blas_rot          - applies a plane rotation to coordinate-pairs
 ; _blas_rotg         - constructs a plane rotation
 ; _blas_swap         - interchanges two vectors (useful for matrix manipulations)
-; _blas_copy         - copies a vector x, to a vector y (useful for extracting parts of a matrix to other areas)
+; _blas_copy         - copies a vector x to a vector y (useful for extracting parts of a matrix to other areas)
 ; _blas_scal         - scales a vector with a scalar (X = a * X)
 ; _blas_nrm2         - calculate the euclidean norm of a vector
 ; _blas_asum         - calculate the sum of the absolute(!) values of a matrix/vector
@@ -49,7 +49,7 @@
 ; _blas_trmv         - matrix-vector multiplication: x := A*x, or x := Aᵀ*x where A is a unpacked upper or lower triangular matrix
 ; _blas_symv         - matrix-vector multiplication: y := alpha*A*x + beta*y where A is an unpacked symmetric matrix
 ; _blas_gbmv         - matrix-vector multiplication: y := alpha*A*x + beta*y, or y := alpha*A**T*x + beta*y where A is an packed(!) banded matrix
-; _blas_sbmv         - matrix-vector multiplication: y := alpha*A*x + beta*y where A is an packed(!) symmetric band matrix
+; _blas_sbmv         - matrix-vector multiplication: alpha*A*x + beta*y --> y where A is an packed(!) symmetric band matrix
 ; _blas_tbsv         - solves one of the systems of equations: A * x = b, or Aᵀ * x = b Where A is an packed(!) lower or upper triangular band matrix
 ; _blas_trsv         - solves one of the systems of equations: A * x = b, or Aᵀ * x = b Where A is an unpacked lower or upper triangular matrix
 ; _blas_ger          - calculate the rank 1 operation: A := alpha * x * yᵀ + A
@@ -75,8 +75,8 @@
 ; ---- helper functions ----
 ; __blas_ArrayFromString - creates an array from an array definition in AutoIt syntax, which is passed as a string
 ; __blas_fillWithScalar  - fills a matrix, a vector or parts thereof with a specific value
+; __blas_GBSfromArray    - converts an AutoIt array into a banded matrix, which is stored in "General-Band Storage Mode"
 ; ===============================================================================================================================
-
 
 
 ; #VARIABLES# ===================================================================================================================
@@ -92,7 +92,7 @@ Global Const $iBLAS_SIZE_FLOAT = 4
 ; constants used as flags to describe the internal storage type of the matrix
 Global Enum Step *2 $__g_BLAS_STYPE_MATRIX = 1, $__g_BLAS_STYPE_TRIANGLE, $__g_BLAS_STYPE_SYMMETRIC, $__g_BLAS_STYPE_BAND, _
                     $__g_BLAS_STYPE_TRIDIAGONAL, $__g_BLAS_STYPE_LOWER, $__g_BLAS_STYPE_UPPER, $__g_BLAS_STYPE_NONUNIT, _
-					$__g_BLAS_STYPE_PACKED, $__g_BLAS_STYPE_POSITIVE_DEFINITE
+					$__g_BLAS_STYPE_PACKED, $__g_BLAS_STYPE_POSITIVE_DEFINITE, $__g_BLAS_STYPE_DIAGONAL
 
 ;~ Single-char structures: In principle, "str" also works in DllCall, but this is inefficient because 65,536 characters are always allocated. These structures are therefore declared once in order to prevent continuous re-generation.
 Global Const $tBLASCHAR1 = DllStructCreate("CHAR"), $pBLASCHAR1 = DllStructGetPtr($tBLASCHAR1)
@@ -199,7 +199,7 @@ EndFunc   ;==>__blas_error
 ;                  pTarget - [Int] (Default: Default)
 ;                          ↳ pointer to a memory area in which the vector is to be created
 ;                            if Default a new memory area is reserved
-; Return value ..: Success: $mRet
+; Return value ..: Success: [Map] BLAS Matrix Map as it is structured in this UDF
 ;                  Failure: Null and set @error to:
 ;                           | 1: error during DllStructCreate (@extended: @error from DllStructCreate)
 ; Author ........: AspirinJunkie
@@ -240,7 +240,7 @@ EndFunc   ;==>_blas_createVector
 ;                        ↳ data type of the elements ("DOUBLE" or "FLOAT")
 ;                  nMode - (Default: $__g_BLAS_STYPE_MATRIX)
 ;                        ↳ BLAS memory layout for the matrix (see $__g_BLAS_STYPE_XXX flags)
-; Return value ..: Success: $mRet
+; Return value ..: Success: [Map] BLAS Matrix Map as it is structured in this UDF
 ;                  Failure: Null and set @error to:
 ;                           | 1: error during DllStructCreate (@extended: @error from DllStructCreate)
 ; Author ........: AspirinJunkie
@@ -491,6 +491,7 @@ EndFunc
 ;                  Global $mMatrix = _blas_fromArray("[[11,12,13,14,0,0],[12,22,23,24,25,0],[13,23,33,34,35,36],[14,24,34,44,45,46],[0,25,35,45,55,56],[0,0,36,46,56,66]]", $__g_BLAS_STYPE_SYMMETRIC + $__g_BLAS_STYPE_BAND + $__g_BLAS_STYPE_UPPER, "DOUBLE", 3)
 ;                  _blas_display($mMatrix, "symmetric upper band matrix")
 ; ===============================================================================================================================
+;~ [[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]
 Func _blas_fromArray($aArray, $nMode = 0, Const $sType = "DOUBLE", $iKL = 0, $iKU = 0)
 	If $sType <> "DOUBLE" And $sType <> "FLOAT" Then Return SetError(1, 0, Null)
 
@@ -862,12 +863,12 @@ Func _blas_display($mData, $sTitle = "", $iDecimalPlaces = 5, $iFlags = 64)
 	If $iDecimalPlaces > 0 Then
 		If UBound($aArray, 0) = 1 Then
 			For $i = 0 To UBound($aArray, 1) - 1
-				$aArray[$i] = StringFormat("%." & $iDecimalPlaces & "g", $aArray[$i])
+				If IsNumber($aArray[$i]) Then $aArray[$i] = StringFormat("%." & $iDecimalPlaces & "g", $aArray[$i])
 			Next
 		Else
 			For $i = 0 To UBound($aArray, 1) - 1
 				For $j = 0 To UBound($aArray, 2) - 1
-					$aArray[$i][$j] = StringFormat("%." & $iDecimalPlaces & "g", $aArray[$i][$j])
+					If IsNumber($aArray[$i][$j]) Then $aArray[$i][$j] = StringFormat("%." & $iDecimalPlaces & "g", $aArray[$i][$j])
 				Next
 			Next
 		EndIf
@@ -3171,6 +3172,61 @@ Func __blas_fillWithScalar(ByRef $mMatrix, $fScalar = 1.0, $iStart = 0, $iInc = 
 		"INT*",           $iInc _                  ; INCY - element step in the target matrix/vector
 	)
 	Return @error ? SetError(1, @error, False) : SetExtended($iN, True)
+EndFunc
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name ..........: __blas_GBSfromArray()
+; Description ...: converts an AutoIt array into a banded matrix, which is stored in "General-Band Storage Mode"
+; Syntax ........: __blas_GBSfromArray($aArray, [$kl = 0, [$ku = 0, [$sType = "DOUBLE"]]])
+; Parameters ....: aArray - [Array] Array holding the matrix
+;                  kl     - (Default: 0)
+;                         ↳ number of subdiagonals
+;                  ku     - (Default: 0)
+;                         ↳ number of super-diagonals
+;                  sType  - [String] (Default: "DOUBLE")
+;                         ↳ data type of the individual elements of the matrix/vector. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: [Map] BLAS Matrix Map as it is structured in this UDF
+;                  Failure: Null and set @error to:
+;                           | 1: matrix must be quadratic (@extended: number of cols of aArray)
+;                           | 2: error during DllStructCreate (@extended: @error from DllStructCreate())
+; Author ........: AspirinJunkie
+; Modified.......: 2024-10-01
+; Remarks .......: The GBS-Mode is NOT the "BLAS-General-Band Storage Mode" (see link for differences)
+; Related .......:
+; Link ..........: https://www.ibm.com/docs/en/essl/6.3?topic=representation-general-band-storage-mode
+; Example .......: Yes
+;                  Global $aArray[][] = [[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]
+;                  Global $mBanded = __blas_GBSfromArray($aArray, 1, 2)
+;                  _blas_display($mBanded)
+; ===============================================================================================================================
+Func __blas_GBSfromArray($aArray, $kl = 0, $ku = 0, Const $sType = "DOUBLE")
+	Local $iLDAB = 2 * $kl + $ku + 1
+	Local $iN = UBound($aArray, 1)
+
+	If UBound($aArray, 2) <> $iN Then Return SetError(1, UBound($aArray, 2), Null)
+
+	Local $tStruct = DllStructCreate(StringFormat("%s[%d]", $sType, $iLDAB * $iN))
+	If @error Then Return SetError(2, @error, Null)
+
+	Local $iIndex
+    For $iJ = 1 To $iN
+        For $iI = (1 >= $iJ - $ku ? 1 : $iJ - $ku) To $iN <= $iJ + $kl ? $iN : $iJ + $kl
+            $iIndex = ($iI - $iJ + $kl + $ku + 1) + ($iJ - 1) * $iLDAB
+			DllStructSetData($tStruct, 1, $aArray[$iI - 1][$iJ - 1], $iIndex)
+        Next
+    Next
+
+	Local $mRet[]
+	$mRet.struct      = $tStruct
+	$mRet.ptr         = DllStructGetPtr($tStruct)
+	$mRet.elements    = $iLDAB * $iN
+	$mRet.size        = $iLDAB * $iN
+	$mRet.rows        = $iLDAB
+	$mRet.cols        = $iN
+	$mRet.storageType = $__g_BLAS_STYPE_MATRIX
+	$mRet.datatype    = $sType
+
+	Return $mRet
 EndFunc
 
 #EndRegion
