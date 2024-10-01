@@ -1365,7 +1365,7 @@ EndFunc
 ;                  _lp_sysv($mA, $mB) ; should be: [1.313, 0.133, 0.855]
 ;                  _blas_display($mB, "solution vector/matrix x")
 ; ===============================================================================================================================
-Func _lp_sysv($mA, $mB, $iNRHS = 1, $cUPLO = "L", $iN = Default, $iLDA = $iN, $iLDB = $iN, $sDataType = Default)
+Func _lp_sysv($mA, $mB, $iNRHS = Default, $cUPLO = "L", $iN = Default, $iLDA = $iN, $iLDB = $iN, $sDataType = Default)
 	Local $pA, $pB ; pointer to the data in memory
 
 	; Set parameters depending on the input type
