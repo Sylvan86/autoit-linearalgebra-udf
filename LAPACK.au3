@@ -1642,7 +1642,7 @@ EndFunc
 ; Name ..........: _lp_trtrs()
 ; Description ...: solves a triangular system of the form A * X = B  or  Aᵀ * X = B
 ;                  where A is a triangular matrix
-; Syntax ........: _lp_trtrs($mA, $mB, [$cUPLO = "U", [$cDIAG = "N", [$cTRANS = "N", [$iNHRS = Default, [$iN = Default, [$iLDA = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]]]])
+; Syntax ........: _lp_trtrs($mA, $mB, [$cUPLO = "U", [$cDIAG = "N", [$cTRANS = "N", [$iNRHS = Default, [$iN = Default, [$iLDA = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]]]])
 ; Parameters ....: mA        - [Map] triangular matrix A as a map, DllStruct or pointer (will be overwritten)
 ;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the solution values X
@@ -1656,7 +1656,7 @@ EndFunc
 ;                            ↳ "N": A  * X = B
 ;                              "T": Aᵀ * X = B
 ;                              "C": Aᴴ * X = B
-;                  iNHRS     - [Int] (Default: Default)
+;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iN        - [Int] (Default: Default)
 ;                            ↳ order of matrix A (rows = number of linear equations)
@@ -1681,7 +1681,7 @@ EndFunc
 ;                  _lp_trtrs($mA, $mX)
 ;                  _blas_display($mX)
 ; ===============================================================================================================================
-Func _lp_trtrs($mA, $mB, $cUPLO = "U", $cDIAG = "N", $cTRANS = "N", $iNHRS = Default, $iN = Default, $iLDA = Default, $iLDB = Default, $sDataType = "DOUBLE")
+Func _lp_trtrs($mA, $mB, $cUPLO = "U", $cDIAG = "N", $cTRANS = "N", $iNRHS = Default, $iN = Default, $iLDA = Default, $iLDB = Default, $sDataType = "DOUBLE")
 	Local $pA, $pB ; pointer to the data in memory
 
 	; Set parameters depending on the input type
@@ -1699,7 +1699,7 @@ Func _lp_trtrs($mA, $mB, $cUPLO = "U", $cDIAG = "N", $cTRANS = "N", $iNHRS = Def
 	Select
 		Case IsMap($mB)
 			$sDataType = $mB.datatype
-			If IsKeyword($iNHRS) = 1 Then $iNHRS = $mB.cols
+			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols
 			If IsKeyword($iLDB) = 1 Then $iLDB = $iN
 			$pB = $mB.ptr
 		Case IsPtr($mB)
@@ -1720,7 +1720,7 @@ Func _lp_trtrs($mA, $mB, $cUPLO = "U", $cDIAG = "N", $cTRANS = "N", $iNHRS = Def
 		"PTR",    $pBLASCHAR2, _     ; TRANS -> 'N': x = A*x, 'T': x = Aᵀ*x, 'C': x = Aᵀ*x
 		"PTR",    $pBLASCHAR3, _     ; DIAG  -> 'U': A = unit triangular, 'N': A = other elements on diagonal
 		"INT*",   $iN, _             ; N
-		"INT*",   $iNHRS, _          ; NHRS
+		"INT*",   $iNRHS, _          ; NRHS
 		"ptr",    $pA, _             ; A
 		"INT*",   $iLDA, _           ; LDA
 		"ptr",    $pB, _             ; B
@@ -1736,14 +1736,14 @@ EndFunc
 ; Description ...: computes the solution to a system of linear equations A * X = B
 ;                  out of the results of _lp_potrf()
 ;                  (solves Uᵀ * U * X = B Or L * Lᵀ * X = B)
-; Syntax ........: _lp_potrs($mA, $mB, [$cUPLO = "U", [$iNHRS = Default, [$iN = Default, [$iLDA = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]])
+; Syntax ........: _lp_potrs($mA, $mB, [$cUPLO = "U", [$iNRHS = Default, [$iN = Default, [$iLDA = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]])
 ; Parameters ....: mA        - [Map] matrix A as returned by _lp_potrf()
 ;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the solution values X
 ;                  cUPLO     - [Char] (Default: "U")
 ;                            ↳ "U": upper triangle of A is stored
 ;                              "L": lower triangle of A is stored
-;                  iNHRS     - [Int] (Default: Default)
+;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iN        - [Int] (Default: Default)
 ;                            ↳ order of matrix A (rows = number of linear equations)
@@ -1768,7 +1768,7 @@ EndFunc
 ;                  _lp_potrs($mA, $mX)
 ;                  _blas_display($mX)
 ; ===============================================================================================================================
-Func _lp_potrs($mA, $mB, $cUPLO = "U", $iNHRS = Default, $iN = Default, $iLDA = Default, $iLDB = Default, $sDataType = "DOUBLE")
+Func _lp_potrs($mA, $mB, $cUPLO = "U", $iNRHS = Default, $iN = Default, $iLDA = Default, $iLDB = Default, $sDataType = "DOUBLE")
 	Local $pA, $pB ; pointer to the data in memory
 
 	; Set parameters depending on the input type
@@ -1786,7 +1786,7 @@ Func _lp_potrs($mA, $mB, $cUPLO = "U", $iNHRS = Default, $iN = Default, $iLDA = 
 	Select
 		Case IsMap($mB)
 			$sDataType = $mB.datatype
-			If IsKeyword($iNHRS) = 1 Then $iNHRS = $mB.cols
+			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols
 			If IsKeyword($iLDB) = 1 Then $iLDB = $iN
 			$pB = $mB.ptr
 		Case IsPtr($mB)
@@ -1803,7 +1803,7 @@ Func _lp_potrs($mA, $mB, $cUPLO = "U", $iNHRS = Default, $iN = Default, $iLDA = 
 	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "potrs", _
 		"PTR",    $pBLASCHAR1, _     ; UPLO  -> 'U': A = upper triangular, 'L': A = lower triangular
 		"INT*",   $iN, _             ; N
-		"INT*",   $iNHRS, _          ; NHRS
+		"INT*",   $iNRHS, _          ; NRHS
 		"ptr",    $pA, _             ; A
 		"INT*",   $iLDA, _           ; LDA
 		"ptr",    $pB, _             ; B
@@ -1813,7 +1813,6 @@ Func _lp_potrs($mA, $mB, $cUPLO = "U", $iNHRS = Default, $iN = Default, $iLDA = 
 	If @error Then Return SetError(1, @error, False)
 	Return $aDLL[8] = 0 ? True : SetError(2, $aDLL[8], False)
 EndFunc
-
 
 #EndRegion
 
@@ -1832,7 +1831,7 @@ EndFunc
 ;                  cTRANS    - [Char] (Default: "N")
 ;                            ↳ "N": A  * X = B
 ;                              "T": Aᵀ * X = B
-;                  iNHRS     - [Int] (Default: Default)
+;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iM        - [Int] (Default: Default)
 ;                            ↳ number of rows of the matrix A
@@ -1950,7 +1949,7 @@ EndFunc
 ;                  cTRANS    - [Char] (Default: "N")
 ;                            ↳ "N": A  * X = B
 ;                              "T": Aᵀ * X = B
-;                  iNHRS     - [Int] (Default: Default)
+;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iM        - [Int] (Default: Default)
 ;                            ↳ number of rows of the matrix A
@@ -2067,7 +2066,7 @@ EndFunc
 ;                  cTRANS    - [Char] (Default: "N")
 ;                            ↳ "N": A  * X = B
 ;                              "T": Aᵀ * X = B
-;                  iNHRS     - [Int] (Default: Default)
+;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iM        - [Int] (Default: Default)
 ;                            ↳ number of rows of the matrix A
@@ -2192,7 +2191,7 @@ EndFunc
 ;                              on exit, contain the results of its complete orthogonal factorization
 ;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the solution values X in the first N elements and residual sum vᵀv in the last elements
-;                  iNHRS     - [Int] (Default: Default)
+;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iM        - [Int] (Default: Default)
 ;                            ↳ number of rows of the matrix A
@@ -2302,6 +2301,98 @@ Func _lp_gelsy($mA, $mB, $iNRHS = Default, $iM = Default, $iN = Default, $iLDA =
 	If @error Then Return SetError(4, @error, Null)
 	Return $aDLL[13] = 0 ? SetExtended($aDLL[10], $tJPVT) : SetError(5, $aDLL[13], Null)
 
+EndFunc
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_geqrs()
+; Description ...: solves overdetermined or underdetermined linear system A * X = B
+;                  using the results of the QR decomposition from _lp_geqrf()
+; Syntax ........: _lp_geqrs($mA, $mB, $tTau, [$iLWork = Default, [$iM = Default, [$iN = Default, [$iNRHS = Default, [$iLDA = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]]])
+; Parameters ....: mA        - [Map] Details of the QR factorization in Matrix A from _lp_geqrf()
+;                  mB        - [Map] ector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
+;                            ↳ on exit, contain the solution values X in the first N elements and residual sum vᵀv in the last elements
+;                  tTau      - [DllStruct] Details of the orthogonal matrix Q as returned by _lp_geqrf()
+;                  iLWork    - [Int] (Default: Default)
+;                            ↳ length of the array WORK as returned in the @extended-macro from _lp_geqrf()
+;                  iM        - [Int] (Default: Default)
+;                            ↳ number of rows in mA
+;                  iN        - [Int] (Default: Default)
+;                            ↳ number of cols in mA
+;                  iNRHS     - [Int] (Default: Default)
+;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
+;                  iLDA      - [Int] (Default: $iM)
+;                            ↳ leading dimension of the array A (rows)
+;                  iLDB      - [Int] (Default: $iN)
+;                            ↳ leading dimension of the array B (rows)
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: True (@extended = LWORK)
+;                  Failure: Null and set @error to:
+;                           | 1: value for LWORK is not valid (@extended:LWORK)
+;                           | 2: error during second DllCall of geqrs (@extended: @error from DllCall)
+;                           | 3: error inside second call of geqrs (@extended: INFO-value from geqrs)
+; Author ........: AspirinJunkie
+; Modified.......: 2024-10-01
+; Remarks .......:
+; Related .......:
+; Link ..........: https://www.netlib.org/lapack/explore-html/d3/d17/dgeqrs_8f_a271f8720489177ac8963f6d8fc61923d.html#a271f8720489177ac8963f6d8fc61923d
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[1,3,-2],[3,5,6],[2,4,3]]")
+;                  Global $mB = _blas_fromArray("[5,7,8]")
+;                  Global $tTau = _lp_geqrf($mA)
+;                  _lp_geqrs($mA, $mB, $tTau, @extended) ; should be: [-15, 8, 2]
+;                  _blas_display($mB, "X")
+; ===============================================================================================================================
+Func _lp_geqrs($mA, $mB, $tTau, $iLWork = Default, $iM  = Default, $iN  = Default, $iNRHS = Default, $iLDA = $iM, $iLDB = $iN, $sDataType = "DOUBLE")
+	Local $pA, $pB ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iM)   = 1 Then $iM   = $mA.rows
+			If IsKeyword($iN)   = 1 Then $iN   = $mA.cols
+			If IsKeyword($iLDA) = 1 Then $iLDA = $iM
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+	Select
+		Case IsMap($mB)
+			$sDataType = $mB.datatype
+			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols
+			If IsKeyword($iLDB) = 1 Then $iLDB = $iM
+			$pB = $mB.ptr
+		Case IsPtr($mB)
+			$pB = $mB
+		Case IsDllStruct($mB)
+			$pB = DllStructGetPtr($mB)
+	EndSelect
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	; declare working buffers
+	If IsKeyword($iLWork) = 1 Then $iLWORK = $iNRHS
+	If $iLWork < 1 Then Return SetError(1, $iLWork, False)
+	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
+
+	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "geqrs", _
+		"INT*", $iM, _                     ; M
+		"INT*", $iN, _                     ; N
+		"INT*", $iNRHS, _                  ; NRHS
+		"PTR",  $pA, _                     ; A
+		"INT*", $iLDA, _                   ; LDA
+		"PTR",  DllStructGetPtr($tTau), _  ; TAU
+		"PTR",  $pB, _                     ; B
+		"INT*", $iLDB, _                   ; LDB
+		"PTR",  DllStructGetPtr($tWork), _ ; WORK buffer
+		"INT*", $iLWork, _                 ; LWORK
+		"INT*", 0 _ 			           ; INFO
+	)
+	If @error Then Return SetError(2, @error, False)
+	Return $aDLL[11] = 0 ? SetExtended($iLWork, True) : SetError(3, $aDLL[11], False)
 EndFunc
 
 #EndRegion
