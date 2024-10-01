@@ -1195,7 +1195,7 @@ EndFunc
 ;                  _lp_gesv($mA, $mB) ; should be: [-15, 8, 2]
 ;                  _blas_display($mB, "solution vector/matrix x")
 ; ===============================================================================================================================
-Func _lp_gesv($mA, $mB, $iNRHS = 1, $iN = Default, $iLDA = $iN, $iLDB = $iN, $sDataType = "DOUBLE")
+Func _lp_gesv($mA, $mB, $iNRHS = Default, $iN = Default, $iLDA = $iN, $iLDB = $iN, $sDataType = "DOUBLE")
 	Local $pA, $pB ; pointer to the data in memory
 
 	; Set parameters depending on the input type
@@ -1212,6 +1212,7 @@ Func _lp_gesv($mA, $mB, $iNRHS = 1, $iN = Default, $iLDA = $iN, $iLDB = $iN, $sD
 	Select
 		Case IsMap($mB)
 			If IsKeyword($iN) = 1 Then $iN = $mB.rows
+			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols > 0 ? $mB.cols : 1
 			$pB = $mB.ptr
 		Case IsPtr($mB)
 			$pB = $mB
@@ -1279,7 +1280,7 @@ EndFunc
 ;                  _lp_posv($mA, $mB) ; should be: [1.313, 0.133, 0.855]
 ;                  _blas_display($mB, "solution vector/matrix x")
 ; ===============================================================================================================================
-Func _lp_posv($mA, $mB, $iNRHS = 1, $cUPLO = "L", $iN = Default, $iLDA = $iN, $iLDB = $iN, $sDataType = "DOUBLE")
+Func _lp_posv($mA, $mB, $iNRHS = Default, $cUPLO = "L", $iN = Default, $iLDA = $iN, $iLDB = $iN, $sDataType = "DOUBLE")
 	Local $pA, $pB ; pointer to the data in memory
 
 	; Set parameters depending on the input type
@@ -1296,6 +1297,7 @@ Func _lp_posv($mA, $mB, $iNRHS = 1, $cUPLO = "L", $iN = Default, $iLDA = $iN, $i
 	Select
 		Case IsMap($mB)
 			If IsKeyword($iN) = 1 Then $iN = $mB.rows
+			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols > 0 ? $mB.cols : 1
 			$pB = $mB.ptr
 		Case IsPtr($mB)
 			$pB = $mB
@@ -1382,7 +1384,7 @@ Func _lp_sysv($mA, $mB, $iNRHS = Default, $cUPLO = "L", $iN = Default, $iLDA = $
 	Select
 		Case IsMap($mB)
 			If IsKeyword($iN)    = 1 Then $iN    = $mB.rows
-			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols
+			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols > 0 ? $mB.cols : 1
 			$pB = $mB.ptr
 		Case IsPtr($mB)
 			$pB = $mB
@@ -1479,7 +1481,7 @@ EndFunc
 ;                  _lp_gbsv($mA, $mB, 0, 0)
 ;                  _blas_display($mB, "solution vector/matrix x")
 ; ===============================================================================================================================
-Func _lp_gbsv($mAB, $mB, $iKL = 0, $iKU = 0, $iN = Default, $iNRHS = 1, $iLDAB = 2 * $iKL + $iKU + 1, $iLDB = Default, $sDataType = Default)
+Func _lp_gbsv($mAB, $mB, $iKL = 0, $iKU = 0, $iN = Default, $iNRHS = Default, $iLDAB = 2 * $iKL + $iKU + 1, $iLDB = Default, $sDataType = Default)
 	Local $pAB, $pB ; pointer to the data in memory
 
 	; Set parameters depending on the input type
@@ -1496,17 +1498,17 @@ Func _lp_gbsv($mAB, $mB, $iKL = 0, $iKU = 0, $iN = Default, $iNRHS = 1, $iLDAB =
 	Select
 		Case IsMap($mB)
 			If IsKeyword($iN)    = 1 Then $iN    = $mB.rows
-			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols
+			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols > 0 ? $mB.cols : 1
 			$pB = $mB.ptr
 		Case IsPtr($mB)
 			$pB = $mB
 		Case IsDllStruct($mB)
 			$pB = DllStructGetPtr($mB)
 	EndSelect
-	
+
 	If IsKeyword($sDataType) = 1 Then $sDataType = "DOUBLE"
 	If IsKeyword($iLDB)      = 1 Then $iLDB      = $iN
-				
+
 	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
 
 	; buffer for pivot indices
