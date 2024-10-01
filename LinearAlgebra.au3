@@ -19,91 +19,91 @@
 
 ; #CURRENT# =====================================================================================================================
 ; ---- vector/matrix creation ----
-; _la_fromArray                 - converts a AutoIt array or array define string into a matrix map
-; _la_fromStruct                - creates a matrix/vector map from a DllStruct as used here in the UDF
-; _la_createVector              - creates new empty vector
-; _la_createMatrix              - creates new empty matrix
-; _la_createIdentity            - create identity matrix/vector
-; _la_duplicate                 - creates an independent copy of a matrix/vector map
-; _la_fromFile                  - reads a matrix or a vector from a file created by _la_toFile()
+; _la_fromArray          - converts a AutoIt array or array define string into a matrix map
+; _la_fromStruct         - creates a matrix/vector map from a DllStruct as used here in the UDF
+; _la_createVector       - creates new empty vector
+; _la_createMatrix       - creates new empty matrix
+; _la_createIdentity     - create identity matrix/vector
+; _la_duplicate          - creates an independent copy of a matrix/vector map
+; _la_fromFile           - reads a matrix or a vector from a file created by _la_toFile()
 ;
 ; ---- extraction/transforming ----
-; _la_join                      - combines 2 matrices
-; _la_transpose                 - transposes a matrix in-place or out-place and [optional] scaling
-; _la_ReDim                     - changes the shape of a matrix by by changing the number of columns (also matrix <-> vector conversion)
-; _la_getRow                    - extracts a row of a matrix as a vector
-; _la_getColumn                 - extracts a column of a matrix as a vector
-; _la_getDiag                   - extracts the diagonal of a matrix as a vector
-; _la_getTriangle               - extract upper or lower triangle part of a matrix
-; _la_VectorToDiag              - creates a diagonal matrix from a vector
+; _la_join               - combines 2 matrices
+; _la_transpose          - transposes a matrix in-place or out-place and [optional] scaling
+; _la_ReDim              - changes the shape of a matrix by by changing the number of columns (also matrix <-> vector conversion)
+; _la_getRow             - extracts a row of a matrix as a vector
+; _la_getColumn          - extracts a column of a matrix as a vector
+; _la_getDiag            - extracts the diagonal of a matrix as a vector
+; _la_getTriangle        - extract upper or lower triangle part of a matrix
+; _la_VectorToDiag       - creates a diagonal matrix from a vector
 ;
 ; ---- data output ----
-; _la_display                   - displays a matrix/vector map, similar to _ArrayDisplay
-; _la_toArray                   - converts a matrix/vector map into an AutoIt array
-; _la_toFile                    - write a matrix/vector into a file
+; _la_display            - displays a matrix/vector map, similar to _ArrayDisplay
+; _la_toArray            - converts a matrix/vector map into an AutoIt array
+; _la_toFile             - write a matrix/vector into a file
 ;
 ; ---- scalar operations ----
-; _la_rotate                    - applies a plane rotation to coordinate-pairs
+; _la_rotate             - applies a plane rotation to coordinate-pairs
 ;
 ; ---- matrix attributes ----
-; _la_isPositiveDefinite        - checks whether a matrix is positive definite
-; _la_isSymmetric               - checks whether a matrix is symmetrical
-; _la_rank                      - determines the rank of a matrix
-; _la_determinant               - calculate the determinant of a matrix
-; _la_conditionNumber           - determine the condition number of a matrix
+; _la_isPositiveDefinite - checks whether a matrix is positive definite
+; _la_isSymmetric        - checks whether a matrix is symmetrical
+; _la_rank               - determines the rank of a matrix
+; _la_determinant        - calculate the determinant of a matrix
+; _la_conditionNumber    - determine the condition number of a matrix
 ;
 ; ---- unary operations ----
-; _la_inverse                   - calculates the inverse of a matrix
-; _la_pseudoInverse             - calculate the Moore-Penrose pseudo inverse of a matrix
-; _la_sum                       - calculates the sum of the elements of a matrix, vector or parts thereof
-; _la_asum                      - calculate the sum of the absolute(!) values of a matrix/vector
-; _la_amin                      - finds the first element having the minimum absolute(!) value
-; _la_amax                      - finds the first element having the maximum absolute(!) value
-; _la_norm                      - calculate the euclidian norm of a vector
-; _la_mean                      - calculate the mean of a vector or parts of a matrix
+; _la_inverse            - calculates the inverse of a matrix
+; _la_pseudoInverse      - calculate the Moore-Penrose pseudo inverse of a matrix
+; _la_sum                - calculates the sum of the elements of a matrix, vector or parts thereof
+; _la_asum               - calculate the sum of the absolute(!) values of a matrix/vector
+; _la_amin               - finds the first element having the minimum absolute(!) value
+; _la_amax               - finds the first element having the maximum absolute(!) value
+; _la_norm               - calculate the euclidian norm of a vector
+; _la_mean               - calculate the mean of a vector or parts of a matrix
 ;
 ; ---- element wise operations ----
-; _la_sqrtElements              - calculates the square root of each element of a matrix/vector
-; _la_squareElements            - calculates the square of each element of a matrix/vector
-; _la_invElements               - forms the reciprocal (1/x) for each element of the matrix/vector
+; _la_sqrtElements       - calculates the square root of each element of a matrix/vector
+; _la_squareElements     - calculates the square of each element of a matrix/vector
+; _la_invElements        - forms the reciprocal (1/x) for each element of the matrix/vector
 ;
 ; ---- addition subtraction ----
-; _la_sub                       - subtracts a matrix/vector B from matrix/vector A
-; _la_add                       - calculate the sum of a matrix/vector/scalar mA and a matrix/vector/scalar mB
+; _la_sub                - subtracts a matrix/vector B from matrix/vector A
+; _la_add                - calculate the sum of a matrix/vector/scalar mA and a matrix/vector/scalar mB
 ;
 ; ---- multiplication ----
-; _la_mul                       - calculates a multiplication between a matrix/vector/scalar A and a matrix/vector/scalar B
-; _la_outerproduct              - calculates the outer product ("tensor product") of two vectors
-; _la_dot                       - calculate the "dot product"/"scalar product"/"inner product" of two vectors
-; _la_scale                     - multiplies the elements of a matrix/vector by a scalar value
-; _la_mulElementWise            - calculates the element-wise ("Hadarmard") product between two matrices/vectors
-; _la_cross                     - calculates the cross product between two 3-element vectors
+; _la_mul                - calculates a multiplication between a matrix/vector/scalar A and a matrix/vector/scalar B
+; _la_outerproduct       - calculates the outer product ("tensor product") of two vectors
+; _la_dot                - calculate the "dot product"/"scalar product"/"inner product" of two vectors
+; _la_scale              - multiplies the elements of a matrix/vector by a scalar value
+; _la_mulElementWise     - calculates the element-wise ("Hadarmard") product between two matrices/vectors
+; _la_cross              - calculates the cross product between two 3-element vectors
 ;
 ; ---- factorization / decomposition ----
-; _la_LU                        - calculates the LU decomposition of a matrix
-; _la_QR                        - calculates the QR decomposition of a matrix
-; _la_SVD                       - calculates the singular value decomposition (SVD) of a matrix
-; _la_cholesky                  - calculate the cholesky decomposition of a symmetric, positive definite matrix ( A --> L * Lᵀ or A --> U * Uᵀ )
+; _la_LU                 - calculates the LU decomposition of a matrix
+; _la_QR                 - calculates the QR decomposition of a matrix
+; _la_SVD                - calculates the singular value decomposition (SVD) of a matrix
+; _la_cholesky           - calculate the cholesky decomposition of a symmetric, positive definite matrix ( A --> L * Lᵀ or A --> U * Uᵀ )
 ;
 ; ---- eigenvalues / eigenvectors ----
-; _la_eigen                     - computes for an N-by-N real matrix A, the eigenvalues and the left and/or right eigenvectors.
+; _la_eigen              - computes for an N-by-N real matrix A, the eigenvalues and the left and/or right eigenvectors.
 ;
 ; ---- solve linear equation systems ----
-; _la_solve                     - computes the solution to a system of linear equations A * X = B
+; _la_solve              - computes the solution to a system of linear equations A * X = B
 ;
 ; ---- least squares solving ----
-; _la_lstsq                     - solves overdetermined or underdetermined [weighted] linear system
+; _la_lstsq              - solves overdetermined or underdetermined [weighted] linear system
 ;
 ; ---- regression ----
-; _la_regression                - calculates an n-dimensional linear or non-linear regression
+; _la_regression         - calculates an n-dimensional linear or non-linear regression
 ;
 ; ---- adjustment ----
-; _la_adjustement               - performs a least-squares adjustment calculation for a system of different [weighted] non-linear equations
-; _la_adjustment_l1             - performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
-; _la_adj_addObservation        - adds an observation to the adjustment system
+; _la_adjustment         - performs a least-squares adjustment calculation for a system of different [weighted] non-linear equations
+; _la_adjustment_l1      - performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
+; _la_adj_addObservation - adds an observation to the adjustment system
 ;
 ; ---- additional helper functions ----
-; _la_adj_showResult            - formats the results of _la_adj more clearly and display them in a window
+; _la_adj_showResult     - formats the results of _la_adj more clearly and display them in a window
 ; ===============================================================================================================================
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
@@ -116,7 +116,7 @@
 ; __la_lstsq_cholesky                - solves overdetermined or underdetermined [weighted] linear system using cholesky decomposition
 ;
 ; ---- regression ----
-; __la_regression_GaussNewton        - calculates an n-dimensional linear or non-linear regression using Gauss Newton method
+; __la_regression_GaussNewton        - calculates an n-dimensional linear or non-linear regression using gauss markov model
 ; __la_regression_LevenbergMarquardt - calculates an n-dimensional linear or non-linear regression using levenberg-marquardt model
 ; __la_Regression_getJacobiParams    - derive the Jacobian matrix for a regression
 ; __la_Regression_getYfromModel      - determines the vector of model results based on the approximated parameters
@@ -137,6 +137,7 @@
 ; ---- additional helper functions ----
 ; __la_getSignificantDecimals        - determines the position of the 1st significant decimal place of a number
 ; ===============================================================================================================================
+
 
 
 ; #CONSTANTS# ===================================================================================================================
@@ -871,7 +872,7 @@ EndFunc   ;==>_la_VectorToDiag
 ;                  Global $mA = _la_fromArray('[[1,2,3],[4,5,6],[7,8,9]]')
 ;                  _la_display($mA, "from AutoIt Array")
 ; ===============================================================================================================================
-Func _la_display($mData, $sTitle = "", $iDecimalPlaces = 5, $iFlags = 64)
+Func _la_display($mData, $sTitle = "", $iDecimalPlaces = 0, $iFlags = 64)
 	; direct AutoIt-type input
 	If IsArray($mData) Or IsString($mData) Then $mData = _blas_fromArray($mData)
 
@@ -1285,51 +1286,65 @@ EndFunc
 ; Description ...: calculates the inverse of a matrix
 ; Syntax ........: _la_inverse($mMatrix, [$bInPlace = False])
 ; Parameters ....: mMatrix  - [Map] matrix as a map/array/definition string
+;                  sMethod  - [String] (Default: Default)
+;                           ↳ Algorithm for determining the inverse
+;                             Default: the best possible algorithm is selected based on the matrix geometry
+;                             "LU": using LU factorization (only for squared matrices)
+;                             "QR": using QR factorization
+;                             "SVD": using SVD factorization (implemented as pseudo inverse)
+;                             "triangular": matrix is treated as a triangular matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
+;                             "symmetric": matrix is treated as a symmetric matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
+;                             "symmetricPositive": matrix is treated as a positive definite symmetric matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
+;                             "diagonal": matrix is treated as a diagonal matrix
+;                             "banded": matrix is treated as a band matrix (use .kl and .ku)
 ;                  bInPlace - [Bool] (Default: False)
 ;                           ↳ True: mMatrix gets overwritten
 ;                             False: mMatrix remains untouched
 ; Return value ..: Success: bInPlace ? True : [Map] inverse of mMatrix as a map
 ;                  Failure: bInPlace ? False : Null
 ;                           | 1: invalid value for mMatrix
-;                           |1X: error X during _lp_getrf() (@extended: @extended from _lp_getrf())
-;                           |2X: error X during _lp_getri() (@extended: @extended from _lp_getri())
+;                           | 2: invalid value for sMethod
+;                           |1X: error X during the algorithm function (@extended: @extended from the function)
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-05
-; Remarks .......: Current via LU decomposition. But still offers a lot of room for optimization for special cases of certain matrix geometries.
-; Related .......: _lp_getrf(), _lp_getri
+; Remarks .......:
+; Related .......:
 ; Link ..........:
 ; Example .......: Yes
-;                  Global $mInverse = _la_inverse('[[19,-80,-55,-58,21],[29,-92,-67,-94,-25],[-12,-29,77,-7,40],[96,96,-70,12,97],[93,89,13,-53,43]]')
-;                  _la_display($mInverse)
+;                  Global $mInverseQuadratic = _la_inverse('[[19,-80,-55,-58,21],[29,-92,-67,-94,-25],[-12,-29,77,-7,40],[96,96,-70,12,97],[93,89,13,-53,43]]', "QR")
+;                  _la_display($mInverseQuadratic, "quadratic", 3)
+;
+;                  Global $mInverseOverdetermined = _la_inverse('[[19,-80,-55,-58],[29,-92,-67,-94],[-12,-29,77,-7],[96,96,-70,12],[93,89,13,-53]]')
+;                  _la_display($mInverseOverdetermined, "Overdetermined", 3)
+;
+;                  Global $mInverseUnderdetermined = _la_inverse('[[19,-80,-55,-58,21],[29,-92,-67,-94,-25],[-12,-29,77,-7,40]]')
+;                  _la_display($mInverseUnderdetermined, "Underdetermined", 3)
+;
+;                  Global $mA = _la_fromArray('[[8,1,2,3],[1,5,7,9],[2,7,3,7],[3,9,7,8]]', $__g_BLAS_STYPE_SYMMETRIC)
+;                  Global $mInverseSymmetric = _la_inverse($mA)
+;                  _la_display($mInverseSymmetric, "symmetric", 3)
+;
+;                  Global $mA = _la_fromArray('[[2,-1,-3],[-1,2,4],[-3,4,9]]', $__g_BLAS_STYPE_SYMMETRIC + $__g_BLAS_STYPE_POSITIVE_DEFINITE)
+;                  Global $mInversePosDef = _la_inverse($mA)
+;                  _la_display($mInversePosDef, "positive definite", 3)
+;
+;                  Global $mA = _la_fromArray('[[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]', $__g_BLAS_STYPE_BAND, "DOUBLE", 1, 2)
+;                  Global $mInverseBanded = _la_inverse($mA)
+;                  _la_display($mInverseBanded, "banded", 3)
+;
+;                  Global $mA = _la_fromArray('[[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]', $__g_BLAS_STYPE_BAND, "DOUBLE", 1, 2)
+;                  Global $mInverseBanded = _la_inverse($mA)
+;                  _la_display($mInverseBanded, "banded", 3)
+;
+;                  Global $mA = _la_fromArray('[[5,0,0,0],[0,9,0,0],[0,0,2,0],[0,0,0,8]]', $__g_BLAS_STYPE_DIAGONAL)
+;                  Global $mInverseDiagonal = _la_inverse($mA)
+;                  _la_display($mInverseDiagonal, "diagonal", 3)
+;
+;                  Global $mA = _la_fromArray('[[19,-80,-55,-58,21],[0,-92,-67,-94,-25],[0,0,77,-7,40],[0,0,0,12,97],[0,0,0,0,43]]', $__g_BLAS_STYPE_TRIANGLE + $__g_BLAS_STYPE_UPPER)
+;                  Global $mInverseTriangular = _la_inverse($mA)
+;                  _la_display($mInverseTriangular, "triangular", 3)
 ; ===============================================================================================================================
-Func _la_inverse($mMatrix, $bInPlace = False)
-
-	; ToDo: Man könnte auch einfach das Gleichungssystem  A * A⁻¹ = I nach A⁻¹ lösen.
-	; Ich vermute, dass dgetri nur Sinn macht, wenn man eh eine LU-Faktorisierung (dgetrf) durchführen muss.
-	; Hierbei noch schauen ob auch m x n Matrizen damit gehen.
-	; Laufzeiten:
-	; - dgetrf ( O(2/3 n³) ) + dgetri ( O(4/3 n³) ) = O(2 n³)				= 8/3 n³ FLOPS
-	; - dgeqrf ( O(4/3 n³) ) + dgeqrs ( O(4/3 n³) ) = O(2 2/3 n³)			= 10/3 n³ FLOPS
-	; - dgesvd = O(8 n³)    (4n³ SVD + 4n³ Inverse aus Ergebnis berechnen)	= 5 1/3 n³ bis 10 1/3 n³
-	; - dgesv = O(2 2/3 n³)   (2/3n³ LU-Zerlegung + 2n³ System lösen)		= 8/3 n³ FLOPS
-	; - dposv = O(n³)    (1/3n³ Cholesky + 2/3n³ System lösen)				= 4/3 n³ FLOPS
-	; - dsytrf ( O(1/3n³) ) + dsytri ( O(2/3n³) ) = O(n³)			(gleich dsysv - jedoch mit expliziter LDLᵀ-Zerlegung)
-	; - dsysv = O(n³)														= 7/3 n³ FLOPS
-	; - dgbsv = 8/3 n*k²  (2/3 nk² LU-Zerlegung + 2nk² System lösen)		= 2n(2m + 1)²
-	; - dtrtrs = 1/3n³														= n²
-
-	; Die Methode per SVD:
-	; - Σ⁻¹: Σ invertieren: Einfach Reziproke der einzelnen Werte, da Σ = Diagonalmatrix bzw. noch Vektor
-	; - A⁻¹ = V Σ⁻¹ Uᵀ				(VΣ⁻¹ = Tmp per dtrmm, dann Tmp * Uᵀ per dgemm)
-
-	; Pseudoinverse per SVD:
-	; - ist im Grunde genau gleich, nur statt der Inverse von Σ⁻¹ muss die Pseudoinverse Σ⁺ berechnet werden.
-	;   das wird genauso gemacht (Reziproke der Werte bilden) aber die Nullwerte bleiben hier unangetastet - bleiben also 0 (Grenzwerte beachten)
-	; - Dann wieder genauso ausmultiplizieren:
-	;   A⁺ = V Σ⁺ Uᵀ
-
-	; Es gäbe noch die Variante dgeqrf + dgeqrs (noch zu implementieren). Diese wäre numerisch stabiler aber wohl langsamer als dgetrf + dgetri
-
+Func _la_inverse($mMatrix, $sMethod = Default, $bInPlace = False)
 	; direct AutoIt-type input
 	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
 
@@ -1339,13 +1354,105 @@ Func _la_inverse($mMatrix, $bInPlace = False)
 	; prevent overwrite if choosed
 	If Not $bInPlace Then $mMatrix = _la_duplicate($mMatrix)
 
-	; first: calculate LU decomposition
-	Local $tIPIV = _lp_getrf($mMatrix)
-	If @error Then Return SetError(10 + @error, @extended, $bInPlace ? False : Null)
+	Local Const $iMatrixType = $mMatrix.storageType
+	Local Const $sDataType = $mMatrix.datatype
+	Local $iM = $mMatrix.rows, $iN = $mMatrix.cols
+	;~ If BitAnd($iMatrixType, $__g_BLAS_STYPE_PACKED) Then Return SetError(2,$iMatrixType, $bInPlace ? False : Null)
 
-	; calculate inverse:
-	_lp_getri($mMatrix, $tIPIV)
-	Return @error ? SetError(20 + @error, @extended, $bInPlace ? False : Null) : ($bInPlace ? True : $mMatrix)
+	; choose the algorithm based on the matrix structure
+	Local $sHalf = ""
+	If IsKeyword($sMethod) = 1 Then
+		Select
+			Case BitAnd($iMatrixType, $__g_BLAS_STYPE_TRIANGLE)
+				$sHalf = BitAnd($iMatrixType, $__g_BLAS_STYPE_LOWER) ? "L" : "U"
+				$sMethod = "triangular"
+
+			Case BitAnd($iMatrixType, $__g_BLAS_STYPE_SYMMETRIC)
+				$sHalf = BitAnd($iMatrixType, $__g_BLAS_STYPE_LOWER) ? "L" : "U"
+				$sMethod = BitAnd($iMatrixType, $__g_BLAS_STYPE_POSITIVE_DEFINITE) ? "symmetricPositive" : "symmetric"
+
+			Case BitAnd($iMatrixType, $__g_BLAS_STYPE_DIAGONAL)
+				$sMethod = "diagonal"
+
+			Case BitAnd($iMatrixType, $__g_BLAS_STYPE_BAND)
+				$sMethod = "banded"
+				If $iM <> $iN Then ContinueCase
+
+			Case Else
+				; quadratic: LU, rectangular overdetermined: QR, rectangular underdetermined: SVD
+				$sMethod = ($iM = $iN) ? "LU" : _
+				           ($iM > $iN) ? "QR" : "SVD"
+		EndSelect
+	EndIf
+
+	Local $mIdentity
+	Switch $sMethod
+		Case "LU" ; 8/3 n³ FLOPS
+			; first: calculate LU decomposition
+			Local $tIPIV = _lp_getrf($mMatrix)
+			If @error Then Return SetError(10 + @error, @extended, $bInPlace ? False : Null)
+
+			; calculate inverse:
+			_lp_getri($mMatrix, $tIPIV)
+			Return @error ? SetError(20 + @error, @extended, $bInPlace ? False : Null) : SetExtended(1, $mMatrix)
+
+		Case "QR" ; 10/3 n³ FLOPS
+			$mIdentity = _la_createIdentity($iM, $iM, $sDataType)
+			_lp_gels($mMatrix, $mIdentity, "N", $iM, $iM, $iN, $iM, $iM, $sDataType)
+			Return @error ? SetError(10 + @error, @extended, $bInPlace ? False : Null) : SetExtended(2, $mIdentity)
+
+		Case "SVD", "pseudo" ; 5 1/3 n³ to 10 1/3 n³ FLOPS
+			; Strictly speaking, this is not quite the same thing.
+			; To calculate the normal SVD inverse, all elements of the sigma matrix are inverted.
+			; With the pseudo inverse, however, only the elements that are significantly unequal to 0 are inverted.
+			Local $mInverse = _la_pseudoInverse($mMatrix)
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(3, $mInverse)
+
+		Case "symmetric" ; 7/3 n³ FLOPS
+			$mIdentity = _la_createIdentity($iM, $iM, $sDataType)
+			_lp_sysv($mMatrix, $mIdentity)
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(4, $mIdentity)
+
+		Case "symmetricPositive" ; 4/3 n³ FLOPS
+			$mIdentity = _la_createIdentity($iM, $iM, $sDataType)
+			_lp_posv($mMatrix, $mIdentity)
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(5, $mIdentity)
+
+		Case "banded" ; 2n(2m + 1)²
+			Local $iKL = $mMatrix.kl, $iKU = $mMatrix.ku
+			Local $iLDAB = 2 * $iKL + $iKU + 1
+
+			If Not BitAND($iMatrixType, $__g_BLAS_STYPE_PACKED) Then
+				Local $aArray = _blas_toArray($mMatrix)
+				$mMatrix = __blas_GBSfromArray($aArray, $iKL, $iKU)
+
+			ElseIf $iKL > 0 Then
+				Local $mTmp = _blas_createMatrix($iLDAB, $iN, $sDataType)
+				Local $dSize = ($sDataType = "DOUBLE") ? $iBLAS_SIZE_DOUBLE : $iBLAS_SIZE_FLOAT
+				_lp_lacpy($mMatrix.ptr, $mTmp.ptr + $dSize * $iKL, "X", $iKL + $iKU + 1, $iN, $iKL + $iKU + 1, $iLDAB, $sDataType)
+				$mMatrix = $mTmp
+			EndIf
+
+			$mIdentity = _la_createIdentity($iM, $iM, $sDataType)
+			_lp_gbsv($mMatrix, $mIdentity, $iKL, $iKU)
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(6, $mIdentity)
+
+		Case "diagonal" ; m FLOPS
+			Local $mDiag = _la_getDiag($mMatrix)
+			_la_invElements($mDiag, True)
+			If @error Then Return SetError(10 + @error, @extended, Null)
+			$mMatrix = _la_VectorToDiag($mDiag)
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(7, $mMatrix)
+
+		Case "triangular" ; n³ FLOPS
+			_lp_trtri($mMatrix, "U")
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(8, $mMatrix)
+
+		Case Else
+			Return SetError(2, 0, $bInPlace ? False : Null)
+
+	EndSwitch
+
 EndFunc
 
 
