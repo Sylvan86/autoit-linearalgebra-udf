@@ -40,8 +40,8 @@ For $i = 0 To 3
 Next
 
 ; do the adjustment and show the results (since there is a linear functional relationship, we do not need approximate values for the parameters)
-Global $mLstSq = _la_adj($mObs, $mParams, "GM", "QR", $iFlags)
-If @error Then Exit MsgBox(16, "error", "error during _la_adj()" & @CRLF & "@error: " & @error & @CRLF & "@extended: " & @extended)
+Global $mLstSq = _la_adjustment($mObs, $mParams, "GM", "QR", $iFlags)
+If @error Then Exit MsgBox(16, "error", "error during _la_adjustment()" & @CRLF & "@error: " & @error & @CRLF & "@extended: " & @extended)
 
 ConsoleWrite("s0: " & $mLstSq.s0 & @CRLF)
 ConsoleWrite("r^TPr: " & $mLstSq.r2sum & @CRLF)
