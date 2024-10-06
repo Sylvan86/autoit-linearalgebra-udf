@@ -32,10 +32,13 @@ Global $__g_hBLAS_DLL = DllOpen(FileGetLongName("../libopenblas.dll"))
 Global $iFlags = $__LA_LSTSQ_SDX
 
 Global $aPoints[][2] = [ _
-	[0,		0], _
-	[1,	1], _
-	[2,	4], _
-	[3,	9] _
+	[-1, 1.3], _
+	[ 0, 0.8], _
+	[ 1, 0.9], _
+	[ 2, 1.2], _
+	[ 3, 2.0], _
+	[ 4, 3.5], _
+	[ 5, 4.1] _
 ]
 
 ; add the observations (direct observations + pseudo observations)
