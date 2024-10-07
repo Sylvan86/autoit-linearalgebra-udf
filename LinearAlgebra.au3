@@ -1903,58 +1903,52 @@ EndFunc
 ;                  bInPlace - [Bool] (Default: False)
 ;                           ↳ True: mMatrix gets overwritten
 ;                             False: mMatrix remains untouched
-; Return value ..: Success: bInplace ? True : matrix/vector with inverted values
-;                  Failure: Null and set @error to:
+; Return value ..: Success: bInplace ? True : [Map] matrix/vector with inverted values
+;                  Failure: bInplace ? False : Null and set @error to:
 ;                           | 1: invalid value for mMatrix
 ;                           |1X: error X during _blas_tbsv() (@extended: @extended from _blas_tbsv())
 ; Author ........: AspirinJunkie
-; Modified.......: 2024-09-05
-; Remarks .......: idea: solve A*x = b with b = vector(n) filled with ones and A = diagonal matrix with elements from $mMatrix as diagonal
+; Modified.......: 2024-10-07
+; Remarks .......: idea: solve A·x = b with b = identity vector and A = diagonal matrix with elements from $mMatrix as diagonal
 ;                  use tbsv because a diag-matrix is saved as simple diag vector in band matrix form with k=0
+;                  it`s possible to use _lp_gbsv() instead but gbsv would stop if element = 0 (here it becomes inf instead)
 ; Related .......: _blas_tbsv()
 ; Link ..........:
 ; Example .......: Yes
-;                  Global $mRet = _la_invElements("[[1,1e-308,3],[4,0,6]]")
-;                  _la_display($mRet)
+;                  Global $mInv = _la_invElements("[[1,1e-308,3],[4,0,6]]")
+;                  _la_display($mInv)
 ; ===============================================================================================================================
-Func _la_invElements(ByRef $mMatrix, $bInPlace = False)
+Func _la_invElements($mMatrix, $bInPlace = False)
 	; direct AutoIt-type input
 	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
 
 	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
-	If Not (IsMap($mMatrix) And MapExists($mMatrix, "ptr")) Then Return SetError(1, 0, Null)
+	If Not (IsMap($mMatrix) And MapExists($mMatrix, "ptr")) Then Return SetError(1, 0, $bInPlace ? False : Null)
 
 	; duplicate input matrix to prevent overwrite if option choosed
 	If Not $bInPlace And IsMap($mMatrix) Then $mMatrix = _la_duplicate($mMatrix)
 
-	Local $iR = $mMatrix.rows, $iC = $mMatrix.cols, $iN = $mMatrix.size, $bIsMatrix = False
-
-	; convert matrix into vector for better handling
-	If $mMatrix.storageType <> 0 Then
-		$bIsMatrix           = True
-		$mMatrix.rows        = $iN
-		$mMatrix.cols        = 1
-		$mMatrix.storageType = 0
-	EndIf
+	Local $iN = $mMatrix.size
 
 	; create vector filled with ones with size as $mMatrix
-	Local $mOnes = _la_createIdentity($iN)
+	Local $mOnes = _la_createIdentity($iN, 0, $mMatrix.datatype)
 
-	; use tbsv to efficiently solve a system with A = diagonal matrix
-	_blas_tbsv($mMatrix.ptr, $mOnes.ptr, 0, "U", "N", "N", $iN, 1, 1)
+	; solve diag(A) * X = I
+	_blas_tbsv($mMatrix.ptr, $mOnes.ptr, 0, "U", "N", "N", $iN, 1, 1, $mMatrix.datatype)
 	If @error Then Return SetError(@error + 10, @extended, $bInPlace ? False : Null)
 
-	; reshape vector into matrix
-	If $bIsMatrix Then
-		$mOnes.rows        = $iR
-		$mOnes.cols        = $iC
-		$mOnes.storageType = $__g_BLAS_STYPE_MATRIX
-	EndIf
-
 	If $bInPlace Then
-		$mMatrix = $mOnes
+		$mMatrix.struct = $mOnes.struct
+		$mMatrix.ptr    = DllStructGetPtr($mMatrix.struct)
 		Return True
 	Else
+		$mOnes.elements    = $mMatrix.elements
+		$mOnes.size        = $mMatrix.size
+		$mOnes.rows        = $mMatrix.rows
+		$mOnes.cols        = $mMatrix.cols
+		$mOnes.storageType = $mMatrix.storageType
+		$mOnes.kl          = $mMatrix.kl
+		$mOnes.ku          = $mMatrix.ku
 		Return $mOnes
 	EndIf
 EndFunc
