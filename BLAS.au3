@@ -367,6 +367,12 @@ Func _blas_toArray(Const ByRef $mMatrix)
 
 				EndIf
 
+			Case BitAND($nMode, $__g_BLAS_STYPE_DIAGONAL) ; diagonal matrix as vector
+				$iN = $iRows < $iCols ? $iRows : $iCols
+				For $i = 0 To $iN - 1
+					$aRet[$i][$i] = DllStructGetData($tStruct, 1, $i + 1)
+				Next
+
 			Case Else
 			; there is no storage representation for packed matrices which are not symmetric, triangular, tridiagonal or banded
 				Return SetError(1, $nMode, Null)
@@ -627,6 +633,13 @@ Func _blas_fromArray($aArray, $nMode = 0, Const $sType = "DOUBLE", $iKL = 0, $iK
 					Next
 
 				EndIf
+
+			Case BitAND($nMode, $__g_BLAS_STYPE_DIAGONAL) ; diagonal vector as matrix
+				$iN = $iRows < $iCols ? $iRows : $iCols
+				$tStruct = DllStructCreate(StringFormat("%s[%d]", $sType, $iN))
+				For $i = 0 To $iN - 1
+					DllStructSetData($tStruct, 1, $aArray[$i][$i], $i + 1)
+				Next
 
 			Case Else
 			; there is no storage representation for packed matrices which are not symmetric, triangular, tridiagonal or banded
@@ -3223,6 +3236,8 @@ Func __blas_GBSfromArray($aArray, $kl = 0, $ku = 0, Const $sType = "DOUBLE")
 	$mRet.size        = $iLDAB * $iN
 	$mRet.rows        = $iLDAB
 	$mRet.cols        = $iN
+	$mRet.kl          = $kl
+	$mRet.ku          = $ku
 	$mRet.storageType = $__g_BLAS_STYPE_MATRIX
 	$mRet.datatype    = $sType
 
