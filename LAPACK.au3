@@ -31,43 +31,43 @@
 ; _lp_potrf  - computes the Cholesky factorization of a real symmetric positive definite matrix
 ; _lp_pbtrf  - computes the Cholesky factorization of a packed real symmetric positive definite band matrix
 ; _lp_getrf  - computes an LU factorization of a general M-by-N matrix A
-; _lp_gesvd  - computes the singular value decomposition (SVD) of a real M-by-N matrix A = U * SIGMA * Vᵀ
+; _lp_gesvd  - computes the singular value decomposition (SVD) of a real M-by-N matrix A = U · Σ · Vᵀ
 ;
 ; ---- eigen values ----
 ; _lp_geev   - computes for an N-by-N real nonsymmetric matrix A, the eigenvalues and the left and/or right eigenvectors.
 ; _lp_syev   - computes all eigenvalues and eigenvectors of a real symmetric matrix A.
 ;
 ; ---- solve linear systems ----
-; _lp_gesv   - computes the solution to a system of linear equations A * X = B where A is a general N × N matrix by using LU decomposition
-; _lp_posv   - computes the solution to a system of linear equations A * X = B where A is an symmetric positive definite N × N matrix by using cholesky decomposition
-; _lp_sysv   - computes the solution to a system of linear equations A * X = B where A is an symmetric N × N matrix by using LDL decomposition
-; _lp_gbsv   - computes the solution to a system of linear equations A * X = B where A is a packed(!) band matrix by using LU decomposition
-; _lp_gtsv   - computes the solution to a system of linear equations A * X = B where A is a tridiagonal matrix by gaussian elimination
-; _lp_trtrs  - solves a triangular system of the form A * X = B or Aᵀ * X = B where A is a triangular matrix
-; _lp_potrs  - computes the solution to a system of linear equations A * X = B out of the results of _lp_potrf() (solves Uᵀ * U * X = B Or L * Lᵀ * X = B)
+; _lp_gesv   - computes the solution to a system of linear equations A · X = B where A is a general N × N matrix by using LU decomposition
+; _lp_posv   - computes the solution to a system of linear equations A · X = B where A is an symmetric positive definite N × N matrix by using cholesky decomposition
+; _lp_sysv   - computes the solution to a system of linear equations A · X = B where A is an symmetric N × N matrix by using LDL decomposition
+; _lp_gbsv   - computes the solution to a system of linear equations A · X = B where A is a packed(!) band matrix by using LU decomposition
+; _lp_gtsv   - computes the solution to a system of linear equations A · X = B where A is a tridiagonal matrix by gaussian elimination
+; _lp_trtrs  - computes the solution to a system of linear equations A · X = B where A is a triangular matrix
+; _lp_tptrs  - computes the solution to a system of linear equations A · X = B where A is a packed(!) triangular matrix
+; _lp_potrs  - computes the solution to a system of linear equations A · X = B out of the results of _lp_potrf() (solves Uᵀ · U · X = B Or L · Lᵀ · X = B)
 ;
 ; ---- least squares ----
-; _lp_gels   - solves overdetermined or underdetermined linear system A * X = B using QR/LQ factorization
-; _lp_getsls - solves overdetermined or underdetermined linear system A * X = B using tall-skinny/short-wide QR/LQ factorization
-; _lp_gelss  - solves overdetermined or underdetermined linear system A * X = B using SVD factorization
-; _lp_gelsy  - solves overdetermined or underdetermined linear system A * X = B using QR decomposition with column pivoting
-; _lp_geqrs  - solves overdetermined or underdetermined linear system A * X = B using the results of the QR decomposition from _lp_geqrf()
+; _lp_gels   - solves overdetermined or underdetermined linear system A · X = B using QR/LQ factorization
+; _lp_getsls - solves overdetermined or underdetermined linear system A · X = B using tall-skinny/short-wide QR/LQ factorization
+; _lp_gelss  - solves overdetermined or underdetermined linear system A · X = B using SVD factorization
+; _lp_gelsy  - solves overdetermined or underdetermined linear system A · X = B using QR decomposition with column pivoting
+; _lp_geqrs  - solves overdetermined or underdetermined linear system A · X = B using the results of the QR decomposition from _lp_geqrf()
 ;
 ; ---- auxiliary functions ----
 ; _lp_lassq  - calculate the sum of squares of elements of a matrix/vector
 ; _lp_lasrt  - sort the values of a matrix/vector
-; _lp_rscl   - divide matrix/vector elements with a scalar a ( = 1/a * X)
+; _lp_rscl   - divide matrix/vector elements with a scalar a ( = 1/a · X)
 ; _lp_lange  - calculates the 1-norm, Frobenius norm, infinity-norm, or the largest absolute value of any element of a general rectangular matrix
 ; _lp_gecon  - estimates the reciprocal of the condition number of a general real matrix A
 ; _lp_lacpy  - copies all or part of a two-dimensional matrix A to another matrix B
 ; _lp_laset  - initializes the off-diagonal elements and the diagonal elements of a matrix to given values
 ; _lp_laswp  - performs a series of row interchanges on a general rectangular matrix
 ; _lp_lapmt  - rearranges the columns of the M by N matrix X as specified by a permutation
-; _lp_lauum  - computes the product U * Uᵀ or Lᵀ * L, where U or L are triangular matrices (chooses if blocked or unblocked variant is used)
-; _lp_lauu2  - computes the product U * Uᵀ or Lᵀ * L, where U or L are triangular matrices (unblocked variant)
+; _lp_lauum  - computes the product U · Uᵀ or Lᵀ · L, where U or L are triangular matrices (chooses if blocked or unblocked variant is used)
+; _lp_lauu2  - computes the product U · Uᵀ or Lᵀ · L, where U or L are triangular matrices (unblocked variant)
 ; _lp_lamch  - determines float/double precision machine parameters
 ; ===============================================================================================================================
-
 
 #Region Inverse
 
@@ -391,8 +391,8 @@ EndFunc
 ;                  mC        - [Map] target Matrix C (m × n)
 ;                  iTSIZE    - [Int] size of tT
 ;                  cSIDE     - [Char] (Default: "L")
-;                            ↳ "L": TRANS="N": Q * C else: C * Q
-;                              "R": TRANS="N": Qᵀ * C else: C * Qᵀ
+;                            ↳ "L": TRANS="N": Q · C else: C · Q
+;                              "R": TRANS="N": Qᵀ · C else: C · Qᵀ
 ;                  cTRANS    - [Char] (Default: "N")
 ;                            ↳ "N":  Q
 ;                              "T":  Qᵀ
@@ -841,7 +841,7 @@ EndFunc
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-02
 ; Remarks .......: - algorithm using partial pivoting with row interchanges
-;                  - calculates the pivoted LU decomposition P * A = L * U, so not A = L * U like e.g. Maple
+;                  - calculates the pivoted LU decomposition P · A = L · U, so not A = L · U like e.g. Maple
 ; Related .......:
 ; Link ..........: https://www.netlib.org/lapack/explore-html/db/d04/group__getrf_gaea332d65e208d833716b405ea2a1ab69.html#gaea332d65e208d833716b405ea2a1ab69
 ; Example .......: Yes
@@ -889,7 +889,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_gesvd()
-; Description ...: computes the singular value decomposition (SVD) of a real M-by-N matrix A = U * SIGMA * Vᵀ
+; Description ...: computes the singular value decomposition (SVD) of a real M-by-N matrix A = U · Σ · Vᵀ
 ; Syntax ........: _lp_gesvd($mA, [$cTransposed = "N", [$iM = Default, [$iN = Default, [$iLDA = Default, [$sDataType = "DOUBLE"]]]]])
 ; Parameters ....: mA        - [Map] matrix A as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the the first rows of Vᵀ
@@ -1232,7 +1232,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_gesv()
-; Description ...: computes the solution to a system of linear equations A * X = B
+; Description ...: computes the solution to a system of linear equations A · X = B
 ;                  where A is a general N × N matrix by using LU decomposition
 ; Syntax ........: _lp_gesv($mA, $mB, [$iNRHS = 1, [$iN = Default, [$iLDA = $iN, [$iLDB = $iN, [$sDataType = "DOUBLE"]]]]])
 ; Parameters ....: mA        - [Map] matrix A as a map, DllStruct or pointer (will be overwritten)
@@ -1314,7 +1314,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_posv()
-; Description ...: computes the solution to a system of linear equations A * X = B
+; Description ...: computes the solution to a system of linear equations A · X = B
 ;                  where A is an symmetric positive definite N × N matrix by using cholesky decomposition
 ; Syntax ........: _lp_posv($mA, $mB, [$iNRHS = 1, [$cUPLO = "L", [$iN = Default, [$iLDA = $iN, [$iLDB = $iN, [$sDataType = "DOUBLE"]]]]]])
 ; Parameters ....: mA        - [Map] symmetric positive definite matrix A as a map, DllStruct or pointer (will be overwritten)
@@ -1399,7 +1399,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_sysv()
-; Description ...: computes the solution to a system of linear equations A * X = B
+; Description ...: computes the solution to a system of linear equations A · X = B
 ;                  where A is an symmetric N × N matrix by using LDL decomposition
 ; Syntax ........: _lp_sysv($mA, $mB, [$iNRHS = 1, [$cUPLO = "L", [$iN = Default, [$iLDA = $iN, [$iLDB = $iN, [$sDataType = Default]]]]]])
 ; Parameters ....: mA        - [Map] symmetric matrix A as a map, DllStruct or pointer (will be overwritten)
@@ -1515,7 +1515,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_gbsv()
-; Description ...: computes the solution to a system of linear equations A * X = B
+; Description ...: computes the solution to a system of linear equations A · X = B
 ;                  where A is a packed(!) band matrix by using LU decomposition
 ; Syntax ........: _lp_gbsv($mAB, $mB, [$iKL = 0, [$iKU = 0, [$iN = Default, [$iNRHS = 1, [$iLDAB = 2 * $iKL + $iKU + 1, [$iLDB = Default, [$sDataType = Default]]]]]]])
 ; Parameters ....: mAB       - [Map] band matrix A in "General-Band Storage Mode" (NOT "BLAS-General-Band Storage Mode") as a map, DllStruct or pointer (will be overwritten)
@@ -1524,7 +1524,7 @@ EndFunc
 ;                  iKL       - [Int] (Default: 0)
 ;                            ↳ number of subdiagonals within the band of A
 ;                  iKU       - [Int] (Default: 0)
-;                            ↳ umber of superdiagonals within the band of A
+;                            ↳ number of superdiagonals within the band of A
 ;                  iN        - [Int] (Default: Default)
 ;                            ↳ order of matrix A (rows = number of linear equations)
 ;                  iNRHS     - [Int] (Default: 1)
@@ -1602,7 +1602,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_gtsv()
-; Description ...: computes the solution to a system of linear equations A * X = B
+; Description ...: computes the solution to a system of linear equations A · X = B
 ;                  where A is a tridiagonal matrix by gaussian elimination
 ; Syntax ........: _lp_gtsv($mD, $mB, [$mDU = Default, [$mDL = Default, [$iNRHS = Default, [$iN = Default, [$iLDB = $iN, [$sDataType = "DOUBLE"]]]]]])
 ; Parameters ....: mD        - [Map] Either: vector holding the elements of the main diagonal as a map, DllStruct or pointer
@@ -1629,7 +1629,7 @@ EndFunc
 ;                           | 2: error inside first call of gtsv (@extended: INFO-value from gtsv)
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-19
-; Remarks .......: to solve Aᵀ * X = B instead: interchanging the order of the arguments mDU and mDL.
+; Remarks .......: to solve Aᵀ · X = B instead: interchanging the order of the arguments mDU and mDL.
 ; Related .......:
 ; Link ..........:
 ; Example .......: Yes
@@ -1712,7 +1712,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_trtrs()
-; Description ...: solves a triangular system of the form A * X = B  or  Aᵀ * X = B
+; Description ...: computes the solution to a system of linear equations A · X = B
 ;                  where A is a triangular matrix
 ; Syntax ........: _lp_trtrs($mA, $mB, [$cUPLO = "U", [$cDIAG = "N", [$cTRANS = "N", [$iNRHS = Default, [$iN = Default, [$iLDA = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]]]])
 ; Parameters ....: mA        - [Map] triangular matrix A as a map, DllStruct or pointer (will be overwritten)
@@ -1725,9 +1725,9 @@ EndFunc
 ;                            ↳ "N": A is non-unit triangular
 ;                              "U": A is unit triangular (diagonal values = 1)
 ;                  cTRANS    - [Char] (Default: "N")
-;                            ↳ "N": A  * X = B
-;                              "T": Aᵀ * X = B
-;                              "C": Aᴴ * X = B
+;                            ↳ "N": A  · X = B
+;                              "T": Aᵀ · X = B
+;                              "C": Aᴴ · X = B
 ;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iN        - [Int] (Default: Default)
@@ -1789,7 +1789,7 @@ Func _lp_trtrs($mA, $mB, $cUPLO = "U", $cDIAG = "N", $cTRANS = "N", $iNRHS = Def
 
 	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "trtrs", _
 		"PTR",    $pBLASCHAR1, _     ; UPLO  -> 'U': A = upper triangular, 'L': A = lower triangular
-		"PTR",    $pBLASCHAR2, _     ; TRANS -> 'N': x = A*x, 'T': x = Aᵀ*x, 'C': x = Aᵀ*x
+		"PTR",    $pBLASCHAR2, _     ; TRANS -> 'N': x = A·x, 'T': x = Aᵀ·x, 'C': x = Aᵀ·x
 		"PTR",    $pBLASCHAR3, _     ; DIAG  -> 'U': A = unit triangular, 'N': A = other elements on diagonal
 		"INT*",   $iN, _             ; N
 		"INT*",   $iNRHS, _          ; NRHS
@@ -1803,11 +1803,102 @@ Func _lp_trtrs($mA, $mB, $cUPLO = "U", $cDIAG = "N", $cTRANS = "N", $iNRHS = Def
 	Return $aDLL[10] = 0 ? True : SetError(2, $aDLL[10], False)
 EndFunc
 
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_tptrs()
+; Description ...: computes the solution to a system of linear equations A · X = B
+;                  where A is a packed(!) triangular matrix
+; Syntax ........: _lp_tptrs($mA, $mB, [$cUPLO = "U", [$cDIAG = "N", [$cTRANS = "N", [$iNRHS = Default, [$iN = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]]])
+; Parameters ....: mA        - [Map] [Map] triangular matrix A in triangular packed storage format as a map, DllStruct or pointer (will be overwritten)
+;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
+;                            ↳ on exit, contain the solution values X
+;                  cUPLO     - [Char] (Default: "U")
+;                            ↳ "U": upper triangle of A is stored
+;                              "L": lower triangle of A is stored
+;                  cDIAG     - [Char] (Default: "N")
+;                            ↳ "N": A is non-unit triangular
+;                              "U": A is unit triangular (diagonal values = 1)
+;                  cTRANS    - [Char] (Default: "N")
+;                            ↳ "N": A  · X = B
+;                              "T": Aᵀ · X = B
+;                              "C": Aᴴ · X = B
+;                  iNRHS     - [Int] (Default: Default)
+;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
+;                  iN        - [Int] (Default: Default)
+;                            ↳ order of matrix A (rows = number of linear equations)
+;                  iLDB      - [Int] (Default: Default)
+;                            ↳ leading dimension of the matrix B (rows)
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: True
+;                  Failure: False and set @error to:
+;                           | 1: error during first DllCall of tptrs (@extended: @error from DllCall)
+;                           | 2: error inside first call of tptrs (@extended: INFO-value from tptrs)
+; Author ........: AspirinJunkie
+; Modified.......: 2024-10-07
+; Remarks .......:
+; Related .......:
+; Link ..........: https://www.netlib.org/lapack/explore-html/d1/db6/group__tptrs_gaca2a67c006910a35d219248c83e58419.html#gaca2a67c006910a35d219248c83e58419
+; Example .......: Yes
+;                  Global $mA = _blas_FromArray("[[4,2,1],[0,3,5],[0,0,2]]", $__g_BLAS_STYPE_TRIANGLE + $__g_BLAS_STYPE_UPPER + $__g_BLAS_STYPE_PACKED)
+;                  Global $mX = _blas_FromArray("[[11,16,4],[5,9,12],[19,12,14]]")
+;                  _lp_tptrs($mA, $mX, "U")
+;                  _blas_display($mX)
+; ===============================================================================================================================
+Func _lp_tptrs($mA, $mB, $cUPLO = "U", $cDIAG = "N", $cTRANS = "N", $iNRHS = Default, $iN = Default, $iLDB = Default, $sDataType = "DOUBLE")
+	Local $pA, $pB ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iN) = 1 Then $iN = $cTRANS = "N" ? $mA.rows : $mA.cols
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+	Select
+		Case IsMap($mB)
+			$sDataType = $mB.datatype
+			If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols
+			If IsKeyword($iLDB) = 1 Then $iLDB = $iN
+			$pB = $mB.ptr
+		Case IsPtr($mB)
+			$pB = $mB
+		Case IsDllStruct($mB)
+			$pB = DllStructGetPtr($mB)
+	EndSelect
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	; set char buffers and input healing
+	DllStructSetData($tBLASCHAR1, 1, $cUPLO  = "U" ? "U" : "L")
+	DllStructSetData($tBLASCHAR2, 1, $cTRANS = "N" ? "N" : ($cTRANS = "T" ? "T" :"C"))
+	DllStructSetData($tBLASCHAR3, 1, $cDIAG  = "N" ? "N" : "U")
+
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "tptrs", _
+		"PTR",    $pBLASCHAR1, _     ; UPLO  -> 'U': A = upper triangular, 'L': A = lower triangular
+		"PTR",    $pBLASCHAR2, _     ; TRANS -> 'N': x = A·x, 'T': x = Aᵀ·x, 'C': x = Aᵀ·x
+		"PTR",    $pBLASCHAR3, _     ; DIAG  -> 'U': A = unit triangular, 'N': A = other elements on diagonal
+		"INT*",   $iN, _             ; N
+		"INT*",   $iNRHS, _          ; NRHS
+		"ptr",    $pA, _             ; AP
+		"ptr",    $pB, _             ; B
+		"INT*",   $iLDB, _           ; LDB
+		"INT*",   0 _                ; INFO
+	)
+	If @error Then Return SetError(1, @error, False)
+	Return $aDLL[9] = 0 ? True : SetError(2, $aDLL[9], False)
+EndFunc
+
+
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_potrs()
-; Description ...: computes the solution to a system of linear equations A * X = B
+; Description ...: computes the solution to a system of linear equations A · X = B
 ;                  out of the results of _lp_potrf()
-;                  (solves Uᵀ * U * X = B Or L * Lᵀ * X = B)
+;                  (solves Uᵀ · U · X = B Or L · Lᵀ · X = B)
 ; Syntax ........: _lp_potrs($mA, $mB, [$cUPLO = "U", [$iNRHS = Default, [$iN = Default, [$iLDA = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]])
 ; Parameters ....: mA        - [Map] matrix A as returned by _lp_potrf()
 ;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
@@ -1893,7 +1984,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_gels()
-; Description ...: solves overdetermined or underdetermined linear system A * X = B
+; Description ...: solves overdetermined or underdetermined linear system A · X = B
 ;                  using QR/LQ factorization
 ; Syntax ........: _lp_gels($mA, $mB, [$cTRANS = "N", [$iNRHS = Default, [$iM = Default, [$iN = Default, [$iLDA = $iM, [$iLDB = $iN, [$sDataType = "DOUBLE"]]]]]]])
 ; Parameters ....: mA        - [Map] matrix A (M × N) as a map, DllStruct or pointer (will be overwritten)
@@ -1901,8 +1992,8 @@ EndFunc
 ;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the solution values X in the first N elements and residual sum vᵀv in the last elements
 ;                  cTRANS    - [Char] (Default: "N")
-;                            ↳ "N": A  * X = B
-;                              "T": Aᵀ * X = B
+;                            ↳ "N": A  · X = B
+;                              "T": Aᵀ · X = B
 ;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iM        - [Int] (Default: Default)
@@ -2011,7 +2102,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_getsls()
-; Description ...: solves overdetermined or underdetermined linear system A * X = B
+; Description ...: solves overdetermined or underdetermined linear system A · X = B
 ;                  using tall-skinny/short-wide QR/LQ factorization
 ; Syntax ........: _lp_getsls($mA, $mB, [$cTRANS = "N", [$iNRHS = Default, [$iM = Default, [$iN = Default, [$iLDA = $iN, [$iLDB = $iN, [$sDataType = "DOUBLE"]]]]]]])
 ; Parameters ....: mA        - [Map] matrix A (M × N) as a map, DllStruct or pointer (will be overwritten)
@@ -2019,8 +2110,8 @@ EndFunc
 ;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the solution values X in the first N elements and residual sum vᵀv in the last elements
 ;                  cTRANS    - [Char] (Default: "N")
-;                            ↳ "N": A  * X = B
-;                              "T": Aᵀ * X = B
+;                            ↳ "N": A  · X = B
+;                              "T": Aᵀ · X = B
 ;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iM        - [Int] (Default: Default)
@@ -2128,7 +2219,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_gelss()
-; Description ...: solves overdetermined or underdetermined linear system A * X = B
+; Description ...: solves overdetermined or underdetermined linear system A · X = B
 ;                  using SVD factorization
 ; Syntax ........: _lp_gelss($mA, $mB, [$cTRANS = "N", [$iNRHS = Default, [$iM = Default, [$iN = Default, [$iLDA = $iN, [$iLDB = $iN, [$fRCOND = -1, [$sDataType = "DOUBLE"]]]]]]]])
 ; Parameters ....: mA        - [Map] matrix A (M × N) as a map, DllStruct or pointer (will be overwritten)
@@ -2136,8 +2227,8 @@ EndFunc
 ;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the solution values X in the first N elements and residual sum vᵀv in the last elements
 ;                  cTRANS    - [Char] (Default: "N")
-;                            ↳ "N": A  * X = B
-;                              "T": Aᵀ * X = B
+;                            ↳ "N": A  · X = B
+;                              "T": Aᵀ · X = B
 ;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iM        - [Int] (Default: Default)
@@ -2256,7 +2347,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_gelsy()
-; Description ...: solves overdetermined or underdetermined linear system A * X = B
+; Description ...: solves overdetermined or underdetermined linear system A · X = B
 ;                  using QR decomposition with column pivoting
 ; Syntax ........: _lp_gelsy($mA, $mB, [$iNRHS = Default, [$iM = Default, [$iN = Default, [$iLDA = $iM, [$iLDB = $iN, [$fRCOND = -1, [$sDataType = "DOUBLE"]]]]]]])
 ; Parameters ....: mA        - [Map] matrix A (M × N) as a map, DllStruct or pointer (will be overwritten)
@@ -2377,7 +2468,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_geqrs()
-; Description ...: solves overdetermined or underdetermined linear system A * X = B
+; Description ...: solves overdetermined or underdetermined linear system A · X = B
 ;                  using the results of the QR decomposition from _lp_geqrf()
 ; Syntax ........: _lp_geqrs($mA, $mB, $tTau, [$iLWork = Default, [$iM = Default, [$iN = Default, [$iNRHS = Default, [$iLDA = Default, [$iLDB = Default, [$sDataType = "DOUBLE"]]]]]]])
 ; Parameters ....: mA        - [Map] Details of the QR factorization in Matrix A from _lp_geqrf()
@@ -2595,7 +2686,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_rscl()
-; Description ...: divide matrix/vector elements with a scalar a ( = 1/a * X)
+; Description ...: divide matrix/vector elements with a scalar a ( = 1/a · X)
 ; Syntax ........: _lp_rscl($mVector, $fScale, [$iStart = 0, [$iInc = 1, [$iN = Default, [$sDataType = "DOUBLE"]]]])
 ; Parameters ....: mVector   - [Map] matrix/vector as a map, DllStruct or pointer (will be overwritten)
 ;                  fScale    - [Float] the divisor scalar
@@ -3086,7 +3177,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_lauum()
-; Description ...: computes the product U * Uᵀ or Lᵀ * L, where U or L are triangular matrices (chooses if blocked or unblocked variant is used)
+; Description ...: computes the product U · Uᵀ or Lᵀ · L, where U or L are triangular matrices (chooses if blocked or unblocked variant is used)
 ; Syntax ........: _lp_lauum($mA, [$cUPLO = "U", [$iN = Default, [$iLDA = $iN, [$sDataType = "DOUBLE"]]]])
 ; Parameters ....: mA        - [Map] matrix A (LDA × N) as a map, DllStruct or pointer (gets overwritten)
 ;                  cUPLO     - [Char] (Default: "U")
@@ -3115,7 +3206,7 @@ EndFunc
 Func _lp_lauum($mA, $cUPLO = "U", $iN = Default, $iLDA = $iN, $sDataType = "DOUBLE")
 	Local $pA ; pointer to the data in memory
 
-	; Triangle * Triangleᵀ = symmetric
+	; Triangle · Triangleᵀ = symmetric
 
 	; Set parameters depending on the input type
 	Select
@@ -3150,7 +3241,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_lauu2()
-; Description ...: computes the product U * Uᵀ or Lᵀ * L, where U or L are triangular matrices (unblocked variant)
+; Description ...: computes the product U · Uᵀ or Lᵀ · L, where U or L are triangular matrices (unblocked variant)
 ; Syntax ........: _lp_lauu2($mA, [$cUPLO = "U", [$iN = Default, [$iLDA = $iN, [$sDataType = "DOUBLE"]]]])
 ; Parameters ....: mA        - [Map] matrix A (LDA × N) as a map, DllStruct or pointer (gets overwritten)
 ;                  cUPLO     - [Char] (Default: "U")
