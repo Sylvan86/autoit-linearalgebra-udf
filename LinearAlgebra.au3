@@ -1289,14 +1289,16 @@ EndFunc
 ;                  sMethod  - [String] (Default: Default)
 ;                           ↳ Algorithm for determining the inverse
 ;                             Default: the best possible algorithm is selected based on the matrix geometry
-;                             "LU": using LU factorization (only for squared matrices)
-;                             "QR": using QR factorization
-;                             "SVD": using SVD factorization (implemented as pseudo inverse)
-;                             "triangular": matrix is treated as a triangular matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
-;                             "symmetric": matrix is treated as a symmetric matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
+;                             "LU":                use LU factorization (only for squared matrices)
+;                             "QR":                use QR factorization
+;                             "SVD":               use SVD factorization (implemented as pseudo inverse)
+;                             "triangular":        matrix is treated as a triangular matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
+;                             "triangularPacked":  matrix is treated as a packed triangular matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
+;                             "symmetric":         matrix is treated as a symmetric matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
 ;                             "symmetricPositive": matrix is treated as a positive definite symmetric matrix (use $__g_BLAS_STYPE_UPPER or $__g_BLAS_STYPE_LOWER)
-;                             "diagonal": matrix is treated as a diagonal matrix
-;                             "banded": matrix is treated as a band matrix (use .kl and .ku)
+;                             "diagonal":          matrix is treated as a diagonal matrix
+;                             "diagonalPacked":    matrix is treated as a packed diagonal matrix (stored as vector)
+;                             "banded":            matrix is treated as a band matrix (use .kl and .ku)
 ;                  bInPlace - [Bool] (Default: False)
 ;                           ↳ True: mMatrix gets overwritten
 ;                             False: mMatrix remains untouched
@@ -1332,17 +1334,25 @@ EndFunc
 ;                  Global $mInverseBanded = _la_inverse($mA)
 ;                  _la_display($mInverseBanded, "banded", 3)
 ;
-;                  Global $mA = _la_fromArray('[[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]', $__g_BLAS_STYPE_BAND, "DOUBLE", 1, 2)
+;                  Global $mA = _la_fromArray('[[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]', $__g_BLAS_STYPE_BAND + $__g_BLAS_STYPE_PACKED, "DOUBLE", 1, 2)
 ;                  Global $mInverseBanded = _la_inverse($mA)
-;                  _la_display($mInverseBanded, "banded", 3)
+;                  _la_display($mInverseBanded, "packed banded", 3)
 ;
 ;                  Global $mA = _la_fromArray('[[5,0,0,0],[0,9,0,0],[0,0,2,0],[0,0,0,8]]', $__g_BLAS_STYPE_DIAGONAL)
 ;                  Global $mInverseDiagonal = _la_inverse($mA)
 ;                  _la_display($mInverseDiagonal, "diagonal", 3)
 ;
+;                  Global $mA = _la_fromArray('[[5,0,0,0],[0,9,0,0],[0,0,2,0],[0,0,0,8]]', $__g_BLAS_STYPE_DIAGONAL + $__g_BLAS_STYPE_PACKED)
+;                  Global $mInverseDiagonal = _la_inverse($mA)
+;                  _la_display($mInverseDiagonal, "diagonal packed", 3)
+;
 ;                  Global $mA = _la_fromArray('[[19,-80,-55,-58,21],[0,-92,-67,-94,-25],[0,0,77,-7,40],[0,0,0,12,97],[0,0,0,0,43]]', $__g_BLAS_STYPE_TRIANGLE + $__g_BLAS_STYPE_UPPER)
 ;                  Global $mInverseTriangular = _la_inverse($mA)
 ;                  _la_display($mInverseTriangular, "triangular", 3)
+;
+;                  Global $mA = _la_fromArray('[[19,-80,-55,-58,21],[0,-92,-67,-94,-25],[0,0,77,-7,40],[0,0,0,12,97],[0,0,0,0,43]]', $__g_BLAS_STYPE_TRIANGLE + $__g_BLAS_STYPE_UPPER + $__g_BLAS_STYPE_PACKED)
+;                  Global $mInverseTriangular = _la_inverse($mA)
+;                  _la_display($mInverseTriangular, "triangular packed", 3)
 ; ===============================================================================================================================
 Func _la_inverse($mMatrix, $sMethod = Default, $bInPlace = False)
 	; direct AutoIt-type input
@@ -1356,7 +1366,7 @@ Func _la_inverse($mMatrix, $sMethod = Default, $bInPlace = False)
 
 	Local Const $iMatrixType = $mMatrix.storageType
 	Local Const $sDataType = $mMatrix.datatype
-	Local $iM = $mMatrix.rows, $iN = $mMatrix.cols
+	Local $iM = $mMatrix.rows, $iN = $mMatrix.cols, $iMin = $iM < $iN ? $iM : $iN
 	;~ If BitAnd($iMatrixType, $__g_BLAS_STYPE_PACKED) Then Return SetError(2,$iMatrixType, $bInPlace ? False : Null)
 
 	; choose the algorithm based on the matrix structure
@@ -1365,14 +1375,14 @@ Func _la_inverse($mMatrix, $sMethod = Default, $bInPlace = False)
 		Select
 			Case BitAnd($iMatrixType, $__g_BLAS_STYPE_TRIANGLE)
 				$sHalf = BitAnd($iMatrixType, $__g_BLAS_STYPE_LOWER) ? "L" : "U"
-				$sMethod = "triangular"
+				$sMethod = "triangular" & (BitAND($iMatrixType, $__g_BLAS_STYPE_PACKED) ? "Packed" : "")
 
 			Case BitAnd($iMatrixType, $__g_BLAS_STYPE_SYMMETRIC)
 				$sHalf = BitAnd($iMatrixType, $__g_BLAS_STYPE_LOWER) ? "L" : "U"
 				$sMethod = BitAnd($iMatrixType, $__g_BLAS_STYPE_POSITIVE_DEFINITE) ? "symmetricPositive" : "symmetric"
 
 			Case BitAnd($iMatrixType, $__g_BLAS_STYPE_DIAGONAL)
-				$sMethod = "diagonal"
+				$sMethod = "diagonal" & (BitAND($iMatrixType, $__g_BLAS_STYPE_PACKED) ? "Packed" : "")
 
 			Case BitAnd($iMatrixType, $__g_BLAS_STYPE_BAND)
 				$sMethod = "banded"
@@ -1409,12 +1419,12 @@ Func _la_inverse($mMatrix, $sMethod = Default, $bInPlace = False)
 			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(3, $mInverse)
 
 		Case "symmetric" ; 7/3 n³ FLOPS
-			$mIdentity = _la_createIdentity($iM, $iM, $sDataType)
-			_lp_sysv($mMatrix, $mIdentity)
+			$mIdentity = _la_createIdentity($iMin, $iMin, $sDataType)
+			_lp_sysv($mMatrix, $mIdentity, Default, $sHalf)
 			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(4, $mIdentity)
 
 		Case "symmetricPositive" ; 4/3 n³ FLOPS
-			$mIdentity = _la_createIdentity($iM, $iM, $sDataType)
+			$mIdentity = _la_createIdentity($iMin, $iMin, $sDataType)
 			_lp_posv($mMatrix, $mIdentity)
 			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(5, $mIdentity)
 
@@ -1433,7 +1443,7 @@ Func _la_inverse($mMatrix, $sMethod = Default, $bInPlace = False)
 				$mMatrix = $mTmp
 			EndIf
 
-			$mIdentity = _la_createIdentity($iM, $iM, $sDataType)
+			$mIdentity = _la_createIdentity($iMin, $iMin, $sDataType)
 			_lp_gbsv($mMatrix, $mIdentity, $iKL, $iKU)
 			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(6, $mIdentity)
 
@@ -1444,9 +1454,18 @@ Func _la_inverse($mMatrix, $sMethod = Default, $bInPlace = False)
 			$mMatrix = _la_VectorToDiag($mDiag)
 			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(7, $mMatrix)
 
+		Case "diagonalPacked" ; m FLOPS
+			_la_invElements($mMatrix, True)
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(8, $mMatrix)
+
 		Case "triangular" ; n³ FLOPS
 			_lp_trtri($mMatrix, "U")
-			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(8, $mMatrix)
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(9, $mMatrix)
+
+		Case "triangularPacked" ; n³ FLOPS
+			$mIdentity = _la_createIdentity($iMin, $iMin, $sDataType)
+			_lp_tptrs($mMatrix, $mIdentity, $sHalf)
+			Return @error ? SetError(10 + @error, @extended, Null) : SetExtended(10, $mIdentity)
 
 		Case Else
 			Return SetError(2, 0, $bInPlace ? False : Null)
@@ -1918,7 +1937,7 @@ EndFunc
 ;                  Global $mInv = _la_invElements("[[1,1e-308,3],[4,0,6]]")
 ;                  _la_display($mInv)
 ; ===============================================================================================================================
-Func _la_invElements($mMatrix, $bInPlace = False)
+Func _la_invElements(ByRef $mMatrix, $bInPlace = False)
 	; direct AutoIt-type input
 	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
 

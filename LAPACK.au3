@@ -2541,7 +2541,7 @@ Func _lp_geqrs($mA, $mB, $tTau, $iLWork = Default, $iM  = Default, $iN  = Defaul
 	If $iLWork < 1 Then Return SetError(1, $iLWork, False)
 	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
 
-	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "geqrs", _
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "geqrs", _
 		"INT*", $iM, _                     ; M
 		"INT*", $iN, _                     ; N
 		"INT*", $iNRHS, _                  ; NRHS

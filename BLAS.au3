@@ -368,8 +368,8 @@ Func _blas_toArray(Const ByRef $mMatrix)
 				EndIf
 
 			Case BitAND($nMode, $__g_BLAS_STYPE_DIAGONAL) ; diagonal matrix as vector
-				$iN = $iRows < $iCols ? $iRows : $iCols
-				For $i = 0 To $iN - 1
+				$iTmp = $iRows < $iCols ? $iRows : $iCols
+				For $i = 0 To $iTmp - 1
 					$aRet[$i][$i] = DllStructGetData($tStruct, 1, $i + 1)
 				Next
 
@@ -497,7 +497,6 @@ EndFunc
 ;                  Global $mMatrix = _blas_fromArray("[[11,12,13,14,0,0],[12,22,23,24,25,0],[13,23,33,34,35,36],[14,24,34,44,45,46],[0,25,35,45,55,56],[0,0,36,46,56,66]]", $__g_BLAS_STYPE_SYMMETRIC + $__g_BLAS_STYPE_BAND + $__g_BLAS_STYPE_UPPER, "DOUBLE", 3)
 ;                  _blas_display($mMatrix, "symmetric upper band matrix")
 ; ===============================================================================================================================
-;~ [[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]
 Func _blas_fromArray($aArray, $nMode = 0, Const $sType = "DOUBLE", $iKL = 0, $iKU = 0)
 	If $sType <> "DOUBLE" And $sType <> "FLOAT" Then Return SetError(1, 0, Null)
 
@@ -506,7 +505,7 @@ Func _blas_fromArray($aArray, $nMode = 0, Const $sType = "DOUBLE", $iKL = 0, $iK
 	If @error Then Return SetError(3, @error, Null)
 
 	; only 1D (Vector) or 2D (Matrix) arrays allowed
-	If UBound($aArray, 0) > 2 Or UBound($aArray, 0) < 1 Then Return SetError(2, UBound($aArray, 0), Null) 
+	If UBound($aArray, 0) > 2 Or UBound($aArray, 0) < 1 Then Return SetError(2, UBound($aArray, 0), Null)
 
 	; variables used in this function
 	Local $tStruct, _
@@ -636,6 +635,7 @@ Func _blas_fromArray($aArray, $nMode = 0, Const $sType = "DOUBLE", $iKL = 0, $iK
 
 			Case BitAND($nMode, $__g_BLAS_STYPE_DIAGONAL) ; diagonal vector as matrix
 				$iN = $iRows < $iCols ? $iRows : $iCols
+				$mRet.size = $iN
 				$tStruct = DllStructCreate(StringFormat("%s[%d]", $sType, $iN))
 				For $i = 0 To $iN - 1
 					DllStructSetData($tStruct, 1, $aArray[$i][$i], $i + 1)
