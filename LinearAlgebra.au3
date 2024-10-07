@@ -83,13 +83,13 @@
 ; _la_LU                 - calculates the LU decomposition of a matrix
 ; _la_QR                 - calculates the QR decomposition of a matrix
 ; _la_SVD                - calculates the singular value decomposition (SVD) of a matrix
-; _la_cholesky           - calculate the cholesky decomposition of a symmetric, positive definite matrix ( A --> L * Lᵀ or A --> U * Uᵀ )
+; _la_cholesky           - calculate the cholesky decomposition of a symmetric, positive definite matrix ( A --> L · Lᵀ or A --> U · Uᵀ )
 ;
 ; ---- eigenvalues / eigenvectors ----
 ; _la_eigen              - computes for an N-by-N real matrix A, the eigenvalues and the left and/or right eigenvectors.
 ;
 ; ---- solve linear equation systems ----
-; _la_solve              - computes the solution to a system of linear equations A * X = B
+; _la_solve              - computes the solution to a system of linear equations A · X = B
 ;
 ; ---- least squares solving ----
 ; _la_lstsq              - solves overdetermined or underdetermined [weighted] linear system
@@ -147,16 +147,16 @@ Global Const $f_LA_FLT_EPS = _lp_lamch("e", "FLOAT"),  $f_LA_FLT_MIN = _lp_lamch
 ; constants/flags to control what elements should be returned by the least square solution functions
 Global Enum Step *2 $__LA_LSTSQ_R = 1, $__LA_LSTSQ_R2Sum, $__LA_LSTSQ_S0, $__LA_LSTSQ_QX, $__LA_LSTSQ_SDX, $__LA_LSTSQ_QY, $__LA_LSTSQ_QYD, $__LA_LSTSQ_SDY, $__LA_LSTSQ_QR, $__LA_LSTSQ_SDR, $__LA_LSTSQ_REDUNDANCY, $__LA_LSTSQ_COND, $__LA_LSTSQ_RANK
 ; $__LA_LSTSQ_R		      - Residuals r:  r = y - y_d
-; $__LA_LSTSQ_R2Sum       - square sum of [weighted] residuals: r2sum = rᵀ * W * v
+; $__LA_LSTSQ_R2Sum       - square sum of [weighted] residuals: r2sum = rᵀ · W · v
 ; $__LA_LSTSQ_S0          - a posteriori standard deviation factor
 ; $__LA_LSTSQ_QX          - cofactor matrix of parameters
-; $__LA_LSTSQ_SDX         - standard deviations of parameters: sdₓ = sqrt(s₀² * diag(Qₓ))
+; $__LA_LSTSQ_SDX         - standard deviations of parameters: sdₓ = sqrt(s₀² · diag(Qₓ))
 ; $__LA_LSTSQ_QY          - a-priori cofactor matrix for the observations: Q_y = P⁻¹
-; $__LA_LSTSQ_QYD         - a posteriori cofactormatrix for the adjusted observations: Q_yd = A * Qₓ * Aᵀ
+; $__LA_LSTSQ_QYD         - a posteriori cofactormatrix for the adjusted observations: Q_yd = A · Qₓ · Aᵀ
 ; $__LA_LSTSQ_SDY         - a posteriori standard deviations for the adjusted observations
 ; $__LA_LSTSQ_QR          - cofactor matrix for the residuals r: Q_r = Q_y - Q_yd
-; $__LA_LSTSQ_SDR         - standard deviations for the residuals: sd_r = sqrt(s₀² * diag(Q_r))
-; $__LA_LSTSQ_REDUNDANCY  - R = Q_y * W
+; $__LA_LSTSQ_SDR         - standard deviations for the residuals: sd_r = sqrt(s₀² · diag(Q_r))
+; $__LA_LSTSQ_REDUNDANCY  - R = Q_y · W
 ; $__LA_LSTSQ_COND        - condition number (only if "SVD" is used)
 ; $__LA_LSTSQ_RANK        - rank for the jacobian matrix (only if "SVD" is used)
 ; ===============================================================================================================================
@@ -1495,14 +1495,14 @@ EndFunc
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-26
 ; Remarks .......: algorithm:
-;                  - calculate SVD decomposition:  A = U * Σ * Vᵀ
+;                  - calculate SVD decomposition:  A = U · Σ · Vᵀ
 ;                  - calculate Σ⁺ by invert every element Σᵢ of Σ if |Σᵢ| > 0
 ;                  - calculate A⁺ = V Σ⁺ Uᵀ
 ; Related .......: _lp_gesvd()
 ; Link ..........:
 ; Example .......: Yes
-;                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
-;                  _la_display($mInverse)
+                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
+                  _la_display($mInverse)
 ; ===============================================================================================================================
 Func _la_pseudoInverse($mMatrix, $fTolerance = Default, $bOverwrite = False)
 	; direct AutoIt-type input
@@ -1541,12 +1541,12 @@ Func _la_pseudoInverse($mMatrix, $fTolerance = Default, $bOverwrite = False)
 	_blas_copy($tSigma, 0, 1, 0, $iMS + 1, $iMS, $mSigmaPlus.ptr)
 	If @error Then Return SetError(20 + @error, @extended, Null)
 
-	; V * Σ⁺ --> C
+	; V · Σ⁺ --> C
 	Local $mC = _blas_createMatrix($iNV, $iNS, $sDataType)
 	_blas_gemm($mSVD.VT.ptr, $mSigmaPlus.ptr, $mC.ptr, 1.0, 0.0, "T", "N", $iNV, $iNS, $iMS > $iNS ? $iNS : $iMS, $iNV, $iMS, $iNV, $sDataType)
 	If @error Then Return SetError(30 + @error, @extended, Null)
 
-	; C * Uᵀ
+	; C · Uᵀ
 	Local $mInverse = _blas_createMatrix($iNV, $iMU, $sDataType)
 	_blas_gemm($mC.ptr, $mSVD.U.ptr, $mInverse.ptr, 1.0, 0.0, "N", "T", $iNV, $iMU, $iNS, $iNV, $iNU, $iNV, $sDataType)
 	If @error Then Return SetError(40 + @error, @extended, Null)
@@ -1952,7 +1952,7 @@ Func _la_invElements(ByRef $mMatrix, $bInPlace = False)
 	; create vector filled with ones with size as $mMatrix
 	Local $mOnes = _la_createIdentity($iN, 0, $mMatrix.datatype)
 
-	; solve diag(A) * X = I
+	; solve diag(A) · X = I
 	_blas_tbsv($mMatrix.ptr, $mOnes.ptr, 0, "U", "N", "N", $iN, 1, 1, $mMatrix.datatype)
 	If @error Then Return SetError(@error + 10, @extended, $bInPlace ? False : Null)
 
@@ -2353,7 +2353,7 @@ Func _la_mul($mA, $mB, $bInPlace = False, $mC = Default)
 					; target vector y
 					$mRet = IsKeyword($mC) = 1 ? _blas_createVector($mB.cols, $mA.datatype) : $mC
 
-					; use transposed version of gemv to calculate x*A instead of A*x
+					; use transposed version of gemv to calculate x·A instead of A·x
 					_blas_gemv($mB.ptr, $mA.ptr, $mRet.ptr, 1, 0, "T", 1, 1, $mB.rows, $mB.cols, $mB.rows, $mB.datatype)
 					Return @error ? SetError(@error + 40, @extended, $bInPlace ? False : Null) : ($bInPlace ? True : $mRet)
 
@@ -2536,7 +2536,7 @@ EndFunc   ;==>_la_scale
 ; Related .......: _blas_sbmv()
 ; Link ..........:
 ; Example .......: Yes
-;                  ; Vector * Vector element wise
+;                  ; Vector · Vector element wise
 ;                  Global $mResult = _la_mulElementWise('[-67,77,-70,13,-58,-94,-7]', '[-67,77,-70,13,-58,-94,-7]')
 ;                  _la_display($mResult)
 ;                  ; Matrix * Matrix element wise product
@@ -2672,7 +2672,7 @@ Func _la_LU($mA, $bInPlace = False)
 
 	; reconstruct the permutation matrix P
 	Local $mP = _la_createIdentity($mA.rows, $mA.cols)
-	_lp_laswp($mP, $tIPIV, 1, $mA.rows, -1) ; remark: "-1" to obtain A = P*L*U, "+1" if P*A = L*U
+	_lp_laswp($mP, $tIPIV, 1, $mA.rows, -1) ; remark: "-1" to obtain A = P·L·U, "+1" if P·A = L·U
 	If @error Then Return SetError(@error + 20, @extended, $bInPlace ? False : Null)
 	$mRet.P = $mP
 
@@ -2800,7 +2800,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_cholesky()
-; Description ...: calculate the cholesky decomposition of a symmetric, positive definite matrix ( A --> L * Lᵀ or A --> U * Uᵀ )
+; Description ...: calculate the cholesky decomposition of a symmetric, positive definite matrix ( A --> L · Lᵀ or A --> U · Uᵀ )
 ; Syntax ........: _la_cholesky($mA, [$cUPLO = "L", [$bInPlace = False]])
 ; Parameters ....: mA       - [Map] symmetric, positive definite matrix as a map/array/definition string (may be overwritten)
 ;                  cUPLO    - [Char] (Default: "L") which part holds the value in the symmetric matrix
@@ -2944,7 +2944,7 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_solve()
-; Description ...: computes the solution to a system of linear equations A * X = B
+; Description ...: computes the solution to a system of linear equations A · X = B
 ; Syntax ........: _la_solve($mA, $mB, [$bIsPositive = _la_isPositiveDefinite($mA])
 ; Parameters ....: mA          - [Map] matrix A as a map, DllStruct or pointer (may be overwritten)
 ;                  mB          - [Map] vector/matrix B as a map, DllStruct or pointer (may be overwritten)
@@ -3099,16 +3099,16 @@ EndFunc
 ;                                          "Cholesky": cholesky decomposition        - better stability and performance than QR but only for positive-definite matrices
 ;                  iFlagsResults         - [UInt] (Default: 0) components of the output as a BitOr combination of the following flags:
 ;                                        ↳ $__LA_LSTSQ_R		  - $mRet.r     = Residuals r:  r = y - y_d
-;                                          $__LA_LSTSQ_R2Sum      - $mRet.r2sum = square sum of [weighted] residuals: r2sum = rᵀ * W * v
+;                                          $__LA_LSTSQ_R2Sum      - $mRet.r2sum = square sum of [weighted] residuals: r2sum = rᵀ · W · v
 ;                                          $__LA_LSTSQ_S0         - $mRet.s0    = a posteriori standard deviation factor
 ;                                          $__LA_LSTSQ_QX         - $mRet.Qx    = cofactor matrix of parameters
-;                                          $__LA_LSTSQ_SDX        - $mRet.sdx   = standard deviations of parameters: sdₓ = sqrt(s₀² * diag(Qₓ))
+;                                          $__LA_LSTSQ_SDX        - $mRet.sdx   = standard deviations of parameters: sdₓ = sqrt(s₀² · diag(Qₓ))
 ;                                          $__LA_LSTSQ_QY         - $mRet.Qy0   = a-priori cofactor matrix for the observations: Q_y = P⁻¹
-;                                          $__LA_LSTSQ_QYD        - $mRet.Qy    = a-posteriori cofactormatrix for the adjusted observations: Q_yd = A * Qₓ * Aᵀ
+;                                          $__LA_LSTSQ_QYD        - $mRet.Qy    = a-posteriori cofactormatrix for the adjusted observations: Q_yd = A · Qₓ · Aᵀ
 ;                                          $__LA_LSTSQ_SDY        - $mRet.sdY   = a posteriori standard deviations for the adjusted observations
 ;                                          $__LA_LSTSQ_QR         - $mRet.Qr    = cofactor matrix for the residuals r: Q_r = Q_y - Q_yd
-;                                          $__LA_LSTSQ_SDR        - $mRet.sdR   = standard deviations for the residuals: sd_r = sqrt(s₀² * diag(Q_r))
-;                                          $__LA_LSTSQ_REDUNDANCY - $mRet.R     = redundandy matrix R = Q_y * W
+;                                          $__LA_LSTSQ_SDR        - $mRet.sdR   = standard deviations for the residuals: sd_r = sqrt(s₀² · diag(Q_r))
+;                                          $__LA_LSTSQ_REDUNDANCY - $mRet.R     = redundandy matrix R = Q_y · W
 ;                                          $__LA_LSTSQ_COND       - $mRet.cond  = condition number (only if "SVD" is used)
 ;                                          $__LA_LSTSQ_RANK       - $mRet.rank  = rank for the jacobian matrix (only if "SVD" is used)
 ;                  fTolerance            - [Float] (Default: Default)
@@ -3119,16 +3119,16 @@ EndFunc
 ;                           { "x":     solution vector x,
 ;                             "f":     degrees of freedom,
 ;                             "r":     Residuals r:  r = y - y_d,
-;                             "r2sum": square sum of [weighted] residuals: r2sum = rᵀ * W * v,
+;                             "r2sum": square sum of [weighted] residuals: r2sum = rᵀ · W · v,
 ;                             "s0":    a posteriori standard deviation factor,
 ;                             "Qx":    cofactor matrix of parameters,
 ;                             "Qy0":   a-priori cofactor matrix for the observations: Qᵧ = P⁻¹,
-;                             "Qy":    a-posteriori cofactormatrix for the adjusted observations: Qᵧd = A * Qₓ * Aᵀ,
+;                             "Qy":    a-posteriori cofactormatrix for the adjusted observations: Qᵧd = A · Qₓ · Aᵀ,
 ;                             "Qr":    cofactor matrix for the residuals r: Qᵣ = Qᵧ - Qᵧd,
-;                             "R":     redundandy matrix R = Qᵧ * W,
-;                             "sdX":   standard deviations of parameters: sdₓ = sqrt(s₀² * diag(Qₓ)),
+;                             "R":     redundandy matrix R = Qᵧ · W,
+;                             "sdX":   standard deviations of parameters: sdₓ = sqrt(s₀² · diag(Qₓ)),
 ;                             "sdY":   a posteriori standard deviations for the adjusted observations,
-;                             "sdR":   standard deviations for the residuals: sdᵣ = sqrt(s₀² * diag(Qᵣ)),
+;                             "sdR":   standard deviations for the residuals: sdᵣ = sqrt(s₀² · diag(Qᵣ)),
 ;                             "cond":  condition number (only if "SVD" is used),
 ;                             "rank":  rank for the jacobian matrix (only if "SVD" is used)
 ;                           }
@@ -3190,18 +3190,18 @@ Func _la_lstsq($mA, $mB, $mP = Default, $sAlgorithm = "QR", $iFlagsResults = 0, 
 	Local $mV
 	If BitAND($iFlagsResults, $__LA_LSTSQ_R) Then
 		$mV = _la_duplicate($mB)
-		; calculate v = A*X - b
+		; calculate v = A·X - b
 		_blas_gemv($mA.ptr, $mRet.x.ptr, $mV.ptr, 1, -1, "N", 1, 1, $iM, $iN, $iM, $sDataType)
 		$mRet.r = $mV
 	EndIf
 
-	; calculate vᵀ*P*v and s0
+	; calculate vᵀ·P·v and s0
 	If BitAND($iFlagsResults, $__LA_LSTSQ_R2Sum) And Not MapExists($mRet, "r2sum") Then
 		If IsKeyword($mPOrig) <> 1 Then
 			Local $tTmp = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iM))
 			Local $pTmp = DllStructGetPtr($tTmp)
 
-			; calculate vᵀ*P*v
+			; calculate vᵀ·P·v
 			If BitAND($mPOrig.storageType, $__g_BLAS_STYPE_MATRIX) Then ; P-Matrix
 				; use symv because P should be a symmetric matrix
 				_blas_symv($mPOrig.ptr, $mV.ptr, $pTmp, 1, 0, "U", $iM, $iM, 1, 1, $sDataType)
@@ -3266,10 +3266,10 @@ Func _la_lstsq($mA, $mB, $mP = Default, $sAlgorithm = "QR", $iFlagsResults = 0, 
 		Local $mC = _blas_createMatrix($iM, $iN, $sDataType) ; temporary matrix
 		Local $mQl = _blas_createMatrix($iM, $iM, $sDataType)
 
-		; calc A * Qₓ --> C (use symmetry of Qₓ)
+		; calc A · Qₓ --> C (use symmetry of Qₓ)
 		_blas_symm($mRet.Qx, $mA, $mC, 1, 0, "U", "R", $iM, $iN, $iN, $iM, $iM, $sDataType)
 
-		; calc C * Aᵀ
+		; calc C · Aᵀ
 		_blas_gemm($mC.ptr, $mA.ptr, $mQl.ptr, 1, 0, "N", "T", $iM, $iM, $iN, $iM, $iM, $iM, $sDataType)
 
 		$mRet.Qy = $mQl
@@ -3382,15 +3382,15 @@ Func __la_lstsq_qr($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__LA
 	If IsKeyword($mP) <> 1 Then
 		If BitAND($mP.storageType, $__g_BLAS_STYPE_MATRIX) Then
 		; full P-Matrix
-			; P -> L * Lᵀ   (Cholesky-factorization)
+			; P -> L · Lᵀ   (Cholesky-factorization)
 			_lp_potrf($mP.ptr, "L", $mP.rows, $mP.rows, $sDataType)
 			If @error Then Return SetError(@error + 30, @extended, Null)
 
-			; L * A = Ad
+			; L · A = Ad
 			_blas_trmm($mP.ptr, $mA.ptr, 1, "L", "L", "N", "N", $iM, $iN, $iM, $iM, $sDataType)
 			If @error Then Return SetError(@error + 40, @extended, Null)
 
-			; L * B = Bd
+			; L · B = Bd
 			If $iK = 1 Then
 				_blas_trmv($mP.ptr, $mB.ptr, "L", "N", "N", $iM, 1, $iM, $sDataType)
 			Else
@@ -3404,7 +3404,7 @@ Func __la_lstsq_qr($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__LA
 			$mTmpM = _la_sqrtElements($mP, False)
 			If @error Then Return SetError(@error + 60, @extended, Null)
 
-			; P * b --> b
+			; P · b --> b
 			$tTmp = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iM))
 			$pTmp = DllStructGetPtr($tTmp)
 			_blas_sbmv($mTmpM.ptr, $mB.ptr, $pTmp, 1, 1, 0, "L", $iM, 1, 1, 1, $sDataType)
@@ -3415,7 +3415,7 @@ Func __la_lstsq_qr($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__LA
 			; P-vector to P- diagonal matrix
 			_la_VectorToDiag($mTmpM, True)
 
-			; P * A --> A
+			; P · A --> A
 			_blas_trmm($mTmpM.ptr, $mA.ptr, 1, "L", "U", "N", "N", $iM, $iN, $iM, $iM, $sDataType)
 			If @error Then Return SetError(@error + 80, @extended, Null)
 		EndIf
@@ -3444,7 +3444,7 @@ Func __la_lstsq_qr($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__LA
 	If @error Then Return SetError(@error + 20, @extended, Null)
 	$mResults.x = $mX
 
-	; calculate vᵀ*P*v and s0
+	; calculate vᵀ·P·v and s0
 	If BitAND($iFlagsResults, $__LA_LSTSQ_R2Sum) Then
 		; calculate the residual sum (the last elements in B)
 		$mResults.r2sum = _blas_nrm2($mB, $iN, 1, $iM - $iN, $sDataType)^2
@@ -3455,12 +3455,12 @@ Func __la_lstsq_qr($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__LA
 		; extract R from A:
 		$mR = _la_getTriangle($mA, "U", True, True)
 
-		; identity matrix for solving Rᵀ * R * Qₓ = I
+		; identity matrix for solving Rᵀ · R · Qₓ = I
 		$mY = _la_createIdentity($iN, $iN, $sDatatype)
 
-		; step 1: solve Rᵀ * Y = I
+		; step 1: solve Rᵀ · Y = I
 		_lp_trtrs($mR.ptr, $mY.ptr, "U", "N", "T", $iN, $iN, $iN, $iN, $sDatatype)
-		; step 2: solve R * Qx = Y
+		; step 2: solve R · Qx = Y
 		_lp_trtrs($mR.ptr, $mY.ptr, "U", "N", "N", $iN, $iN, $iN, $iN, $sDatatype)
 
 		; add flags to mark the matrix as upper symmetric
@@ -3469,8 +3469,8 @@ Func __la_lstsq_qr($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__LA
 		$mResults.Qx = $mY
 		; Alternative:
 		; - extract triangular part of R
-		; - calc (Rᵀ * R) with dsyrk
-		; - solve (Rᵀ*R) * Qx = I with dposv
+		; - calc (Rᵀ · R) with dsyrk
+		; - solve (Rᵀ·R) · Qx = I with dposv
 		; BUT: this should be less efficient and less numerical stable
 	EndIf
 
@@ -3554,15 +3554,15 @@ Func __la_lstsq_svd($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__L
 	If IsKeyword($mP) <> 1 Then
 		If BitAND($mP.storageType, $__g_BLAS_STYPE_MATRIX) Then
 		; full P-Matrix
-			; P -> L * Lᵀ   (Cholesky-factorization)
+			; P -> L · Lᵀ   (Cholesky-factorization)
 			_lp_potrf($mP.ptr, "L", $mP.rows, $mP.rows, $sDataType)
 			If @error Then Return SetError(@error + 30, @extended, Null)
 
-			; L * A = Ad
+			; L · A = Ad
 			_blas_trmm($mP.ptr, $mA.ptr, 1, "L", "L", "N", "N", $iM, $iN, $iM, $iM, $sDataType)
 			If @error Then Return SetError(@error + 40, @extended, Null)
 
-			; L * B = Bd
+			; L · B = Bd
 			If $iK = 1 Then
 				_blas_trmv($mP.ptr, $mB.ptr, "L", "N", "N", $iM, 1, $iM, $sDataType)
 			Else
@@ -3576,7 +3576,7 @@ Func __la_lstsq_svd($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__L
 			$mTmpM = _la_sqrtElements($mP, False)
 			If @error Then Return SetError(@error + 60, @extended, Null)
 
-			; P * b --> b
+			; P · b --> b
 			$tTmp = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iM))
 			$pTmp = DllStructGetPtr($tTmp)
 			_blas_sbmv($mTmpM.ptr, $mB.ptr, $pTmp, 1, 1, 0, "L", $iM, 1, 1, 1, $sDataType)
@@ -3587,7 +3587,7 @@ Func __la_lstsq_svd($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__L
 			; P-vector to P- diagonal matrix
 			_la_VectorToDiag($mTmpM, True)
 
-			; P * A --> A
+			; P · A --> A
 			_blas_trmm($mTmpM.ptr, $mA.ptr, 1, "L", "U", "N", "N", $iM, $iN, $iM, $iM, $sDataType)
 			If @error Then Return SetError(@error + 80, @extended, Null)
 
@@ -3609,7 +3609,7 @@ Func __la_lstsq_svd($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__L
 		_la_invElements($mSp, True)
 		_la_VectorToDiag($mSp, True)
 
-		; x = V * Σ⁺ * Uᵀ * B
+		; x = V · Σ⁺ · Uᵀ · B
 		Local $mTmp = _blas_createMatrix($iN, $iN, $sDataType)
 		$mX   = _blas_createVector($iN, $sDataType)
 		_blas_gemv($mU.ptr, $mB.ptr, $mX.ptr, 1, 0, "T", 1, 1, $iM, $iN, $iM, $sDataType)
@@ -3618,18 +3618,18 @@ Func __la_lstsq_svd($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR($__L
 
 		$mResults.x = $mX
 
-		; Qₓ = V * (Σᵀ * Σ)⁻¹ * Vᵀ
+		; Qₓ = V · (Σᵀ · Σ)⁻¹ · Vᵀ
 		$tS = $mS.struct
 		For $i = 1 To $iN
 			DllStructSetData($tS, 1, 1 / (DllStructGetData($tS, 1, $i)^2), $i)
 		Next
-		Local $mQx = _la_VectorToDiag($mS) ; --> (Σᵀ * Σ)⁻¹
+		Local $mQx = _la_VectorToDiag($mS) ; --> (Σᵀ · Σ)⁻¹
 		; alternative (but maybe irregular values)
-		;~ _la_squareElements($mS, True)      ; Σᵀ * Σ
+		;~ _la_squareElements($mS, True)      ; Σᵀ · Σ
 		;~ Local $mQx = _la_invElements($mS)
 		;~ _la_VectorToDiag($mQx, True)
-		_blas_gemm($mVt.ptr, $mQx.ptr, $mTmp.ptr, 1, 0, "T", "N", $iN, $iN, $iN, $iN, $iN, $iN, $sDataType) ; V * [...]
-		_blas_gemm($mTmp.ptr, $mVt.ptr, $mQx.ptr, 1, 0, "N", "N", $iN, $iN, $iN, $iN, $iN, $iN, $sDataType) ; [...] * Vᵀ
+		_blas_gemm($mVt.ptr, $mQx.ptr, $mTmp.ptr, 1, 0, "T", "N", $iN, $iN, $iN, $iN, $iN, $iN, $sDataType) ; V · [...]
+		_blas_gemm($mTmp.ptr, $mVt.ptr, $mQx.ptr, 1, 0, "N", "N", $iN, $iN, $iN, $iN, $iN, $iN, $sDataType) ; [...] · Vᵀ
 
 		; add flags to mark the matrix as upper symmetric
 		$mQx.storageType = BitOR($mQx.storageType, $__g_BLAS_STYPE_SYMMETRIC + $__g_BLAS_STYPE_UPPER)
@@ -3731,7 +3731,7 @@ Func __la_lstsq_cholesky($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR
 
 		Else
 		; P-Vector = Diagonal Matrix
-			; calc Aᵀ * P  (with P = diagonal matrix)
+			; calc Aᵀ · P  (with P = diagonal matrix)
 			; scale every column is much more efficient and stable then _blas_gemm for this case
 			; anyway: because it`s an AutoIt-loop it still could be slower than the brute force _blas_gemm method
 			$mATP = _la_transpose($mAOrig)
@@ -3743,11 +3743,11 @@ Func __la_lstsq_cholesky($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR
 			Next
 		EndIf
 
-		; N = ATP * A
+		; N = ATP · A
 		$mN = _blas_createMatrix($iN, $iN, $sDataType)
 		_blas_gemm($mATP.ptr, $mAOrig.ptr, $mN.ptr, 1, 0, "N", "N", $iN, $iN, $iM, $iN, $iM, $iN, $sDataType)
 
-		; n = ATP * b
+		; n = ATP · b
 		$mL = _blas_createVector($iN, $sDataType)
 		_blas_gemv($mATP.ptr, $mB.ptr, $mL.ptr, 1, 0, "N", 1, 1, $iN, $iM, $iN, $sDataType)
 
@@ -3759,16 +3759,16 @@ Func __la_lstsq_cholesky($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR
 	EndIf
 
 	; idea of solving with cholesky:
-	; normal equations: Aᵀ * P * A * x = Aᵀ * P * b
-	;                 :           N * x = n
-	; cholesky factorize N:       N = L * Lᵀ
-	; solve   L * Lᵀ * x = n
+	; normal equations: Aᵀ · P · A · x = Aᵀ · P · b
+	;                 :           N · x = n
+	; cholesky factorize N:       N = L · Lᵀ
+	; solve   L · Lᵀ · x = n
 
-	; cholesky factorization of N --> L * Lᵀ
+	; cholesky factorization of N --> L · Lᵀ
 	_lp_potrf($mN.ptr, "U", $iN, $iN, $sDataType) ; --> L
 
-	; solve L * Lᵀ * x = n
-	_lp_potrs($mN, $mL, "U", 1, $iN, $iN, $iN, $sDataType)  ; n x n * n = n
+	; solve L · Lᵀ · x = n
+	_lp_potrs($mN, $mL, "U", 1, $iN, $iN, $iN, $sDataType)  ; n x n · n = n
 
 	; extract first N values (= solution values)
 	$mX = _blas_createVector($iN, $sDatatype)
@@ -3782,8 +3782,8 @@ Func __la_lstsq_cholesky($mAOrig, $mBOrig, $mP = Default, $iFlagsResults = BitOR
 		$mN.storageType = BitOR($mN.storageType, $__g_BLAS_STYPE_SYMMETRIC + $__g_BLAS_STYPE_UPPER) ; add flags to mark the matrix as upper symmetric
 		If BitAND($iFlagsResults, $__LA_LSTSQ_QX) Then $mResults.Qx = _blas_duplicate($mN)
 
-		; to check: maybe it`s more efficient to calc x by Qx * n in this case instead of potrs
-		; calc x = 	Qx * n
+		; to check: maybe it`s more efficient to calc x by Qx · n in this case instead of potrs
+		; calc x = 	Qx · n
 		;~ $mXd = _blas_createVector($iN, $sDataType)
 		;~ _blas_symv($mN, $mL, $mXd, 1, 0, "L")
 		;~ $mResults.x = $mXd
@@ -4014,7 +4014,7 @@ Func __la_regression_GaussNewton($sFunc, $mVars, $mY, $mApprox = Default, $fAppr
 		; shortened solution vector
 		$mR = _la_sub($mY, $mYd)
 
-		; least square solution of A * dX = r
+		; least square solution of A · dX = r
 		$mLstSq = _la_lstsq($mA, $mR, Default, $sLstSqAlgo, $iFlagsLstSq)
 		If @error Then Return SetError(@error + 10, 0, Null)
 		$mXd = $mLstSq.x
@@ -4051,7 +4051,7 @@ Func __la_regression_GaussNewton($sFunc, $mVars, $mY, $mApprox = Default, $fAppr
 	; TSS = square sum of diffs
 	Local $fTSS = _lp_lassq($mY)
 
-	; RSS = vᵀ * v
+	; RSS = vᵀ · v
 	Local $fRSS = $mLstSq.r2sum
 
 	; calculate both coefficients of determination
@@ -4209,7 +4209,7 @@ Func __la_regression_LevenbergMarquardt($sFunc, $mVars, $mY, $mApprox = Default,
 		$mL = _blas_createVector($iM + $iN, "DOUBLE")
 		_blas_copy($mYd.struct, 0, 1, 0, 1, $iM, $mL.ptr, False, "DOUBLE")
 
-		; least square solution of J * dX = l
+		; least square solution of J · dX = l
 		$mLstSq = _la_lstsq($mJ, $mL, Default, $sLstSqAlgo, $iFlagsLstSq)
 		If @error Then Return SetError(@error + 10, 0, Null)
 		$mXd = $mLstSq.x
@@ -4271,7 +4271,7 @@ Func __la_regression_LevenbergMarquardt($sFunc, $mVars, $mY, $mApprox = Default,
 	; TSS = square sum of diffs
 	Local $fTSS = _lp_lassq($mY)
 
-	; RSS = vᵀ * v
+	; RSS = vᵀ · v
 	Local $fRSS = $mLstSq.r2sum
 
 	; calculate both coefficients of determination
@@ -4707,16 +4707,16 @@ EndFunc
 ;                           { "x":     solution vector x,
 ;                             "f":     degrees of freedom,
 ;                             "r":     Residuals r:  r = y - y_d,
-;                             "r2sum": square sum of [weighted] residuals: r2sum = rᵀ * W * v,
+;                             "r2sum": square sum of [weighted] residuals: r2sum = rᵀ · W · v,
 ;                             "s0":    a posteriori standard deviation factor,
 ;                             "Qx":    cofactor matrix of parameters,
 ;                             "Qy0":   a-priori cofactor matrix for the observations: Qᵧ = P⁻¹,
-;                             "Qy":    a-posteriori cofactormatrix for the adjusted observations: Qᵧd = A * Qₓ * Aᵀ,
+;                             "Qy":    a-posteriori cofactormatrix for the adjusted observations: Qᵧd = A · Qₓ · Aᵀ,
 ;                             "Qr":    cofactor matrix for the residuals r: Qᵣ = Qᵧ - Qᵧd,
-;                             "R":     redundandy matrix R = Qᵧ * W,
-;                             "sdX":   standard deviations of parameters: sdₓ = sqrt(s₀² * diag(Qₓ)),
+;                             "R":     redundandy matrix R = Qᵧ · W,
+;                             "sdX":   standard deviations of parameters: sdₓ = sqrt(s₀² · diag(Qₓ)),
 ;                             "sdY":   a posteriori standard deviations for the adjusted observations,
-;                             "sdR":   standard deviations for the residuals: sdᵣ = sqrt(s₀² * diag(Qᵣ)),
+;                             "sdR":   standard deviations for the residuals: sdᵣ = sqrt(s₀² · diag(Qᵣ)),
 ;                             "cond":  condition number (only if "SVD" is used),
 ;                             "rank":  rank for the jacobian matrix (only if "SVD" is used)
 ;                           }
@@ -4992,7 +4992,7 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 	Local $mA = _blas_createMatrix($iM, $iN, $sDataType), $tA = $mA.struct
 	; declare parameter approximation vector x0
 	Local $mX0 = _blas_createVector($iN, $sDataType), $tX0 = $mX0.struct
-	; declare the levenberg-marquardt extension for the jacobian:  A --> [[A], [sqrt(Lambda) * I]]
+	; declare the levenberg-marquardt extension for the jacobian:  A --> [[A], [sqrt(Lambda) · I]]
 	Local $mLambdaI = _blas_createMatrix($iN, $iN, $sDataType)
 
 	; derive weights vector (or default if unweighted)
@@ -5038,7 +5038,7 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 
 		; weighted case (adjust A and r with sqrt(P))
 		If IsKeyword($mP) <> 1 Then
-			; P * r --> r
+			; P · r --> r
 			$tTmp = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iM))
 			$pTmp = DllStructGetPtr($tTmp)
 			_blas_sbmv($pPsqrt, $mY0.ptr, $pTmp, 1, 1, 0, "L", $iM, 1, 1, 1)
@@ -5048,7 +5048,7 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 			$mY0.ptr = $pTmp
 			$tY0 = $tTmp
 
-			; P * A --> A
+			; P · A --> A
 			_blas_trmm($mPmat.ptr, $mA.ptr, 1, "L", "U", "N", "N", $iM, $iN, $iM, $iM, $sDataType)
 			If @error Then Return SetError(3, @extended, Null)
 		EndIf
@@ -5063,7 +5063,7 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 		$mL = _blas_createVector($iM + $iN, $sDataType)
 		_blas_copy($tY0, 0, 1, 0, 1, $iM, $mL.ptr, False, $sDataType)
 
-		; least square solution of A * dX = r
+		; least square solution of A · dX = r
 		$mLstSq = _la_lstsq($mJ, $mL, Default, $sLstSqAlgo, 0)
 		If @error Then Return SetError(10 + @error, 0, Null)
 		$mXd = $mLstSq.x
@@ -5094,7 +5094,7 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 
 		; weighted case --> adjust r with P
 		If IsKeyword($mP) <> 1 Then
-			; P * r --> r
+			; P · r --> r
 			$tTmp = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iM))
 			$pTmp = DllStructGetPtr($tTmp)
 			_blas_sbmv($pPsqrt, $mY0.ptr, $pTmp, 1, 1, 0, "L", $iM, 1, 1, 1)
@@ -5155,7 +5155,7 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 				; P-vector to P- diagonal matrix
 				_la_VectorToDiag($mP, True)
 
-				; Qv * P
+				; Qv · P
 				Local $mR = _blas_duplicate($mLstSq.Qr)
 				_blas_trmm($mP.ptr, $mR.ptr, 1, "L", "U", "N", "N", $iM, $iM, $iM, $iM, $sDataType)
 				$mLstSq.R = $mR
@@ -5252,7 +5252,7 @@ Func __la_adj_GaussNewton($mObservations, $mParams, $sLstSqAlgo = "QR", $iFlagsL
 		_blas_scal($mY0.ptr, -1, 0, 1, $iM)
 		_blas_axpy($mY.ptr, $mY0.ptr, 1, 0, 0, 1, 1, $iM)
 
-		; least square solution of A * dX = r
+		; least square solution of A · dX = r
 		$mLstSq = _la_lstsq($mA, $mY0, $mP, $sLstSqAlgo, $iFlagsLstSq)
 		If @error Then Return SetError(@error + 20, 0, Null)
 		$mXd = $mLstSq.x
@@ -5292,7 +5292,7 @@ Func __la_adj_GaussNewton($mObservations, $mParams, $sLstSqAlgo = "QR", $iFlagsL
 				; P-vector to P- diagonal matrix
 				_la_VectorToDiag($mP, True)
 
-				; Qv * P
+				; Qv · P
 				Local $mR = _blas_duplicate($mLstSq.Qr)
 				_blas_trmm($mP.ptr, $mR.ptr, 1, "L", "U", "N", "N", $iM, $iM, $iM, $iM, $sDataType)
 				$mLstSq.R = $mR
