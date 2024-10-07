@@ -1943,7 +1943,6 @@ Func _la_invElements($mMatrix, $bInPlace = False)
 		Return True
 	Else
 		$mOnes.elements    = $mMatrix.elements
-		$mOnes.size        = $mMatrix.size
 		$mOnes.rows        = $mMatrix.rows
 		$mOnes.cols        = $mMatrix.cols
 		$mOnes.storageType = $mMatrix.storageType
