@@ -2923,42 +2923,72 @@ EndFunc
 
 #Region solve linear equation systems
 
-
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_solve()
 ; Description ...: computes the solution to a system of linear equations A * X = B
 ; Syntax ........: _la_solve($mA, $mB, [$bIsPositive = _la_isPositiveDefinite($mA])
 ; Parameters ....: mA          - [Map] matrix A as a map, DllStruct or pointer (may be overwritten)
 ;                  mB          - [Map] vector/matrix B as a map, DllStruct or pointer (may be overwritten)
-;                  bIsPositive - [Bool] (Default: _la_isPositiveDefinite($mA)
-;                              ↳ True: mA is positive definite (more efficient algorithm is used)
-;                              ↳ False: mA is not positive definite
 ;                  bInPlace    - [Bool] (Default: False)
 ;                              ↳ True:  mA/mB gets overwritten
 ;                                False: mA/mB remains untouched
 ; Return value ..: Success: [Map] solution vector/matrix X
 ;                  Failure: bInplace ? False : Null and set @error to:
-;                           | 1: invalid value for mA
+;                           | 1: invalid value for mA/mB (@extended = 1: mA, @extended = 2: mB)
 ;                           | 2: mA is not quadratic
-;                           |1X: error X during _lp_posv()/_lp_gesv()  (@extended: @extended from _lp_posv()/_lp_gesv())
+;                           |1X: error X during low-level-function (@extended: @extended from low-level-function)
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-05
 ; Remarks .......: ToDo: Use more efficient functions depending on the shape of the matrix A
 ;                  (e.g. _blas_tbsv/trsv/trsm or _lp_sysv/gbsv/trtrs/posv)
-; Related .......: _lp_gesv(), _lp_posv()
+; Related .......: _lp_gesv(), _lp_posv(), _lp_tptrs(), _lp_trtrs(), _blas_trsv(), _lp_sysv(), _lp_gbsv()
 ; Link ..........:
 ; Example .......: Yes
 ;                  Global $mA = _la_fromArray("[[6,2,1],[2,5,2],[1,2,4]]")
 ;                  Global $mB = _la_fromArray("[[9,3],[5,2],[5,1]]") ; calculate for 2 different B`s: [9,5,5] and [3,2,1]
 ;                  Global $mX = _la_solve($mA, $mB)
 ;                  _la_display($mX, "solution vector X")
+;
+;                  Global $mA = _la_fromArray('[[8,1,2,3],[1,5,7,9],[2,7,3,7],[3,9,7,8]]', $__g_BLAS_STYPE_SYMMETRIC)
+;				   Global $mX = _la_solve($mA, _la_createIdentity(4, 4))
+;                  _la_display($mX, "symmetric system", 3)
+;
+;                  Global $mA = _la_fromArray('[[2,-1,-3],[-1,2,4],[-3,4,9]]', $__g_BLAS_STYPE_SYMMETRIC + $__g_BLAS_STYPE_POSITIVE_DEFINITE)
+;                  Global $mX = _la_solve($mA, _la_createIdentity(3, 3))
+;                  _la_display($mX, "positve definite system", 3)
+;
+;                  Global $mA = _la_fromArray('[[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]', $__g_BLAS_STYPE_BAND, "DOUBLE", 1, 2)
+;                  Global $mX = _la_solve($mA, _la_createIdentity(5, 5))
+;                  _la_display($mX, "banded system", 3)
+;
+;                  Global $mA = _la_fromArray('[[19,-80,-55,0,0],[29,-92,-67,-94,0],[0,-29,77,-7,40],[0,0,-70,12,97],[0,0,0,53,43]]', $__g_BLAS_STYPE_BAND + $__g_BLAS_STYPE_PACKED, "DOUBLE", 1, 2)
+;                  Global $mX = _la_solve($mA, _la_createIdentity(5, 5))
+;                  _la_display($mX, "packed banded system", 3)
+;
+;                  Global $mA = _la_fromArray('[[5,0,0,0],[0,9,0,0],[0,0,2,0],[0,0,0,8]]', $__g_BLAS_STYPE_DIAGONAL)
+;                  Global $mX = _la_solve($mA, _la_createIdentity(4, 4))
+;                  _la_display($mX, "diagonal system", 3)
+;
+;                  Global $mA = _la_fromArray('[[5,0,0,0],[0,9,0,0],[0,0,2,0],[0,0,0,8]]', $__g_BLAS_STYPE_DIAGONAL + $__g_BLAS_STYPE_PACKED)
+;                  Global $mX = _la_solve($mA, _la_createIdentity(4, 4))
+;                  _la_display($mX, "diagonal packed system", 3)
+;
+;                  Global $mA = _la_fromArray('[[19,-80,-55,-58,21],[0,-92,-67,-94,-25],[0,0,77,-7,40],[0,0,0,12,97],[0,0,0,0,43]]', $__g_BLAS_STYPE_TRIANGLE + $__g_BLAS_STYPE_UPPER)
+;                  Global $mX = _la_solve($mA, _la_createIdentity(5, 5))
+;                  _la_display($mX, "triangular system", 3)
+;
+;                  Global $mA = _la_fromArray('[[19,-80,-55,-58,21],[0,-92,-67,-94,-25],[0,0,77,-7,40],[0,0,0,12,97],[0,0,0,0,43]]', $__g_BLAS_STYPE_TRIANGLE + $__g_BLAS_STYPE_UPPER + $__g_BLAS_STYPE_PACKED)
+;                  Global $mX = _la_solve($mA, _la_createIdentity(5, 5))
+;                  _la_display($mX, "triangular", 3)
 ; ===============================================================================================================================
-Func _la_solve($mA, $mB, $bIsPositive = _la_isPositiveDefinite($mA), $bInPlace = False)
+Func _la_solve($mA, $mB, $bInPlace = False)
 	; direct AutoIt-type input
 	If IsArray($mA) Or IsString($mA) Then $mA = _blas_fromArray($mA)
+	If IsArray($mB) Or IsString($mB) Then $mB = _blas_fromArray($mB)
 
 	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
-	If Not MapExists($mA, "ptr") Then Return SetError(1, 0, $bInPlace ? False : Null)
+	If Not MapExists($mA, "ptr") Then Return SetError(1, 1, $bInPlace ? False : Null)
+	If Not MapExists($mB, "ptr") Then Return SetError(1, 2, $bInPlace ? False : Null)
 
 	; dimension check
 	If $mA.rows <> $mA.cols Then Return SetError(2, 0, $bInPlace ? False : Null)
@@ -2969,14 +2999,63 @@ Func _la_solve($mA, $mB, $bIsPositive = _la_isPositiveDefinite($mA), $bInPlace =
 		$mB = _la_duplicate($mB)
 	EndIf
 
-	; check if only one solution vector or multiple used
-	Local $iNRHS = $mB.storageType = 0 ? 1 : $mB.cols
+	Local Const $iMatrixType = $mA.storageType, _
+	            $sDataType   = $mA.datatype
+	Local $iNRHS = $mB.storageType = 0 ? 1 : $mB.cols, _
+	      $sHalf = BitAnd($iMatrixType, $__g_BLAS_STYPE_LOWER) ? "L" : "U"
 
-	If $bIsPositive Then
-		_lp_posv($mA, $mB, $iNRHS)
-	Else
-		_lp_gesv($mA, $mB, $iNRHS)
-	EndIf
+	Select
+		Case BitAnd($iMatrixType, $__g_BLAS_STYPE_TRIANGLE)
+			; triangular matrix
+			If BitAnd($iMatrixType, $__g_BLAS_STYPE_PACKED) Then
+				; packed triangular matrix A
+				_lp_tptrs($mA, $mB, $sHalf)
+
+			ElseIf $iNRHS > 1 Then
+				; use the LAPACK variant (B can be matrix + additional checks)
+				_lp_trtrs($mA, $mB, $sHalf, "N", "N", $iNRHS)
+
+			Else
+				; use the BLAS variant (b is vector only - fastest variant)
+				_blas_trsv($mA, $mB, $sHalf)
+
+			EndIf
+
+		Case BitAnd($iMatrixType, $__g_BLAS_STYPE_SYMMETRIC) ; symmetric matrix
+			If BitAnd($iMatrixType, $__g_BLAS_STYPE_POSITIVE_DEFINITE) Then
+				; positive definite symmetric
+				_lp_posv($mA, $mB, $iNRHS)
+
+			Else ; symmetric
+				_lp_sysv($mA, $mB, $iNRHS)
+
+			EndIf
+
+		Case BitAnd($iMatrixType, $__g_BLAS_STYPE_DIAGONAL) ; diagonal matrix
+
+			If BitAnd($iMatrixType, $__g_BLAS_STYPE_PACKED) Then
+				_lp_gbsv($mA, $mB, 0, 0, $mA.size)
+
+			Else ; extract diagonal vector and process the vector only
+				$mA = _la_getDiag($mA)
+				_lp_gbsv($mA, $mB, 0, 0)
+
+			EndIf
+
+		Case BitAnd($iMatrixType, $__g_BLAS_STYPE_BAND) ; band matrix
+			; go to general case (there is no special function for unpacked band matrices - alternative is to convert into packed form)
+			If Not BitAnd($iMatrixType, $__g_BLAS_STYPE_PACKED) Then ContinueCase
+
+			; convert "BLAS-general-band storage mode" into "general-band storage mode"
+			$mA = __blas_GBSfromArray(_blas_toArray($mA), $mA.kl, $mA.ku, $sDataType)
+
+			; solve using "general-band storage mode"
+			_lp_gbsv($mA, $mB, $mA.kl, $mA.ku)
+
+		Case Else ; general matrices
+			_lp_gesv($mA, $mB, $iNRHS)
+
+	EndSelect
 	If @error Then Return SetError(@error + 10, @extended, Null)
 
 	Return SetExtended($iNRHS, $mB)
