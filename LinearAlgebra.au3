@@ -1501,8 +1501,8 @@ EndFunc
 ; Related .......: _lp_gesvd()
 ; Link ..........:
 ; Example .......: Yes
-                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
-                  _la_display($mInverse)
+;                  Global $mInverse = _la_pseudoInverse('[[1,1,1,1],[5,7,7,9]]') ; --> [[2, -0.25], [0.25, 0], [0.25, 0], [-1.5, 0.25]]
+;                  _la_display($mInverse, "", 3)
 ; ===============================================================================================================================
 Func _la_pseudoInverse($mMatrix, $fTolerance = Default, $bOverwrite = False)
 	; direct AutoIt-type input
@@ -1802,7 +1802,6 @@ EndFunc
 
 #Region element wise operations
 
-
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_sqrtElements()
 ; Description ...: calculates the square root of each element of a matrix/vector
@@ -1842,15 +1841,16 @@ Func _la_sqrtElements($mMatrix, $bInPlace = False)
 
 	_lp_pbtrf($mMatrix.ptr, "L", 0, $iN, 1, $mMatrix.datatype)
 	If @error Then ; switch to manual method
-		Local $bStart = False, $tM = $mMatrix.struct
+		Local $bStart = False, $tM = $mMatrix.struct, $fValue
 		For $i = 1 To $iN
+			$fValue = DllStructGetData($tM, 1, $i)
 			If Not $bStart Then
-				If DllStructGetData($tM, 1, $i) <= 0 Then
+				If $fValue <= 0 Then
 					$bStart = True
-					DllStructSetData($tM, 1, Sqrt(Abs(DllStructGetData($tM, 1, $i))), $i)
+					DllStructSetData($tM, 1, Sqrt(Abs($fValue)), $i)
 				EndIf
 			Else
-				DllStructSetData($tM, 1, Sqrt(Abs(DllStructGetData($tM, 1, $i))), $i)
+				DllStructSetData($tM, 1, Sqrt(Abs($fValue)), $i)
 			EndIf
 		Next
 		Return SetExtended(@error, $bInPlace ? True : $mMatrix)
@@ -5247,6 +5247,10 @@ Func __la_adj_GaussNewton($mObservations, $mParams, $sLstSqAlgo = "QR", $iFlagsL
 		__la_adj_getJacobiParams($mObservations, $mParams, $tA, $sDeriveMethod)
 		; derive model predicted observation values y0
 		__la_adj_getYfromModel($mObservations, $mParams, $tY0)
+
+		Local $aA = _blas_toArray($mA)
+		Local $aY = _blas_toArray($mY)
+		Clipput(_ArrayToString($aA, ","))
 
 		; calculate residual vector r = y - y0  --> y0
 		_blas_scal($mY0.ptr, -1, 0, 1, $iM)
