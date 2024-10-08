@@ -2558,6 +2558,255 @@ Func _lp_geqrs($mA, $mB, $tTau, $iLWork = Default, $iM  = Default, $iN  = Defaul
 	Return $aDLL[11] = 0 ? SetExtended($iLWork, True) : SetError(3, $aDLL[11], False)
 EndFunc
 
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_gglse()
+; Description ...: solves the overdetermined system of equations A * x = c while satisfying the restrictions B * x = d
+; Syntax ........: _lp_gglse($mA, $mB, $mC, $mD, [$iM = Default, [$iN = Default, [$iP = Default, [$iLDA = $iM, [$iLDB = $iP, [$sDataType = "DOUBLE"]]]]]])
+; Parameters ....: mA        - [Map] jacobian matrix that represents the coefficients of the linear equations
+;                            ↳  on exit: contain the upper trapezoidal matrix T
+;                  mB        - [Map] jacobian matrix that represents the linear coefficients of the contstraint equations
+;                            ↳  on exit: contain the upper triangular matrix R from the QR factorization
+;                  mC        - [Map] observation vector / "right hand side" of the linear equations
+;                            ↳  on exit: contain the residual sum of squares in the elements N-P+1 to M
+;                  mD        - [Map] constraint value vector / "right hand side" of the constraint equations
+;                  iM        - [Int] (Default: Default)
+;                            ↳ number of rows of mA
+;                  iN        - [Int] (Default: Default)
+;                            ↳ number of columns of mA and mB
+;                  iP        - [Int] (Default: Default)
+;                            ↳ number of rows of mB
+;                  iLDA      - [Int] (Default: $iM)
+;                            ↳ leading dimension of mA (rows = M)
+;                  iLDB      - [Int] (Default: $iN)
+;                            ↳ leading dimension of mB (rows = P)
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: [Map] solution vector x holding the parameter values
+;                  Failure: False and set @error to:
+;                           | 1: error during first DllCall of gglse (@extended: @error from DllCall)
+;                           | 2: error inside first call of gglse (@extended: INFO-value from gglse)
+;                           | 3: value for LWORK is not valid (@extended:LWORK)
+;                           | 5: error during second DllCall of gglse (@extended: @error from DllCall)
+;                           | 6: error inside second call of gglse (@extended: INFO-value from gglse)
+; Author ........: AspirinJunkie
+; Modified.......: 2024-10-08
+; Remarks .......: adjustment problems that contain restrictions, which in turn represent functions f(x) for the parameters x, can be efficiently solved with this.
+; Related .......:
+; Link ..........: https://www.netlib.org/lapack/explore-html/db/de8/group__gglse_gaa610b7fa3d5cd43cbcc2d7f44b2ce8b4.html#gaa610b7fa3d5cd43cbcc2d7f44b2ce8b4
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[10,15],[1,1]]")
+;                  Global $mC = _blas_fromArray("[100,10]")
+;                  Global $mB = _blas_fromArray("[[2, 1],[1, 3]]")
+;                  Global $mD = _blas_fromArray("[100,90]")
+;                  Global $mX = _lp_gglse($mA, $mB, $mC, $mD)
+;                  _blas_display($mX, "X")
+; ===============================================================================================================================
+Func _lp_gglse($mA, $mB, $mC, $mD, $iM = Default, $iN = Default, $iP =Default, $iLDA = $iM, $iLDB = $iP, $sDataType = "DOUBLE")
+	Local $pA, $pB, $pC, $pD ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iM) = 1 Then $iM = $mA.rows
+			If IsKeyword($iN) = 1 Then $iN = $mA.cols
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+	Select
+		Case IsMap($mB)
+			$pB = $mB.ptr
+			If IsKeyword($iP) = 1 Then $iP = $mB.rows
+			If IsKeyword($iN) = 1 Then $iN = $mB.cols
+		Case IsPtr($mB)
+			$pB = $mB
+		Case IsDllStruct($mB)
+			$pB = DllStructGetPtr($mB)
+	EndSelect
+	$pC = IsMap($mC) ? $mC.ptr : (IsPtr($mC) ? $mC : DllStructGetPtr($mC))
+	$pD = IsMap($mD) ? $mD.ptr : (IsPtr($mD) ? $mD : DllStructGetPtr($mD))
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	If IsKeyword($iLDA)  = 1 Then $iLDA = $iM
+	If IsKeyword($iLDB)  = 1 Then $iLDB = $iP
+
+	; first run: determine optimal size of WORK
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gglse", _
+		"INT*",           $iM, _   ; M
+		"INT*",           $iN, _   ; N
+		"INT*",           $iP, _   ; P
+		"PTR",            0, _     ; A
+		"INT*",           $iLDA, _ ; lda
+		"PTR",            0, _     ; B
+		"INT*",           $iLDB, _ ; LDB
+		"PTR",            0, _     ; C
+		"PTR",            0, _     ; D
+		"PTR",            0, _     ; X
+		$sDataType & "*", 0, _     ; WORK buffer (here 1 element because we only determine the size)
+		"INT*",           -1, _    ; LWORK
+		"INT*",           0 _      ; INFO
+	)
+	If @error Then Return SetError(1, @error, False)
+	If $aDLL[13] <> 0 Then Return SetError(2, $aDLL[13], False)
+	; declare working buffers
+	Local $iLWork = $aDLL[11]
+	If $iLWork < 1 Then Return SetError(3, $iLWork, False)
+	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
+
+	; reserve memory for the result
+	Local $mX = _blas_createVector($iN, $sDataType), $pX = $mX.ptr
+
+	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gglse", _
+		"INT*", $iM, _                      ; M
+		"INT*", $iN, _                      ; N
+		"INT*", $iP, _                      ; P
+		"PTR",  $pA, _                      ; A
+		"INT*", $iLDA, _                    ; LDB
+		"PTR",  $pB, _                      ; B
+		"INT*", $iLDB, _                    ; LDB
+		"PTR",  $pC, _                      ; C
+		"PTR",  $pD, _                      ; D
+		"PTR",  $pX, _                      ; X
+		"PTR",  DllStructGetPtr($tWork) , _ ; WORK buffer (here 1 element because we only determine the size)
+		"INT*", $iLWORK, _                  ; LWORK
+		"INT*", 0 _ 			            ; INFO
+	)
+	If @error Then Return SetError(5, @error, False)
+	If $aDLL[13] <> 0 Then Return SetError(6, $aDLL[13], False)
+
+	Return $mX
+EndFunc
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_ggglm()
+; Description ...: solves a general Gauss-Markov system of equations d = A*x + B*y which combines observations and restrictions in one model
+; Syntax ........: _lp_ggglm($mA, $mB, $mD, [$iN = Default, [$iM = Default, [$iP = Default, [$iLDA = $iN, [$iLDB = $iN, [$sDataType = "DOUBLE"]]]]]])
+; Parameters ....: mA        - [Map] jacobian matrix that represents the coefficients of the linear equations
+;                            ↳  on exit: contain the upper triangular matrix R from the QR factorization
+;                  mB        - [Map] jacobian matrix that represents the linear coefficients of the contstraint equations
+;                            ↳  on exit: contain the upper trapezoidal matrix T
+;                  mD        - [Map] observation vector
+;                  iN        - [Int] (Default: Default)
+;                            ↳ number of rows of mA and mB
+;                  iM        - [Int] (Default: Default)
+;                            ↳ number of columns of mA
+;                  iP        - [Int] (Default: Default)
+;                            ↳ number of columns of mB
+;                  iLDA      - [Int] (Default: $iN)
+;                            ↳ leading dimension of mA (rows = N)
+;                  iLDB      - [Int] (Default: $iN)
+;                            ↳ leading dimension of mB (rows = N)
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: [Map] {"x": [Map] solution vector x, "y": [Map] solution vector y}
+;                  Failure: False and set @error to:
+;                           | 1: error during first DllCall of ggglm (@extended: @error from DllCall)
+;                           | 2: error inside first call of ggglm (@extended: INFO-value from ggglm)
+;                           | 3: value for LWORK is not valid (@extended:LWORK)
+;                           | 5: error during second DllCall of ggglm (@extended: @error from DllCall)
+;                           | 6: error inside second call of ggglm (@extended: INFO-value from ggglm)
+; Author ........: AspirinJunkie
+; Modified.......: 2024-10-08
+; Remarks .......: minimizes the 2-norm of vector y
+; Related .......:
+; Link ..........: https://www.netlib.org/lapack/explore-html/d2/d6b/group__ggglm_ga544037b6f0d5863d646fa110a30d976c.html#ga544037b6f0d5863d646fa110a30d976c
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[1,2],[3,4],[5,6]]")
+;                  Global $mB = _blas_fromArray("[[7,8], [9,10], [11,12]]")
+;                  Global $mD = _blas_fromArray("[14,32,50]")
+;                  Global $mResult = _lp_ggglm($mA, $mB, $mD)
+;                  _blas_display($mResult.x, "x")
+;                  _blas_display($mResult.y, "y")
+; ===============================================================================================================================
+Func _lp_ggglm($mA, $mB, $mD, $iN = Default, $iM = Default, $iP =Default, $iLDA = $iN, $iLDB = $iN, $sDataType = "DOUBLE")
+	Local $pA, $pB, $pD ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iN) = 1 Then $iN = $mA.rows
+			If IsKeyword($iM) = 1 Then $iM = $mA.cols
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+	Select
+		Case IsMap($mB)
+			$pB = $mB.ptr
+			If IsKeyword($iP) = 1 Then $iP = $mB.cols
+			If IsKeyword($iN) = 1 Then $iN = $mB.rows
+		Case IsPtr($mB)
+			$pB = $mB
+		Case IsDllStruct($mB)
+			$pB = DllStructGetPtr($mB)
+	EndSelect
+	$pD = IsMap($mD) ? $mD.ptr : (IsPtr($mD) ? $mD : DllStructGetPtr($mD))
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	If IsKeyword($iLDA)  = 1 Then $iLDA = $iN
+	If IsKeyword($iLDB)  = 1 Then $iLDB = $iN
+
+	; first run: determine optimal size of WORK
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "ggglm", _
+		"INT*",           $iN, _   ; N
+		"INT*",           $iM, _   ; M
+		"INT*",           $iP, _   ; P
+		"PTR",            0, _     ; A
+		"INT*",           $iLDA, _ ; lda
+		"PTR",            0, _     ; B
+		"INT*",           $iLDB, _ ; LDB
+		"PTR",            0, _     ; D
+		"PTR",            0, _     ; X
+		"PTR",            0, _     ; Y
+		$sDataType & "*", 0, _     ; WORK buffer (here 1 element because we only determine the size)
+		"INT*",           -1, _    ; LWORK
+		"INT*",           0 _      ; INFO
+	)
+	If @error Then Return SetError(1, @error, False)
+	If $aDLL[13] <> 0 Then Return SetError(2, $aDLL[13], False)
+
+	; declare working buffers
+	Local $iLWork = $aDLL[11]
+	If $iLWork < 1 Then Return SetError(3, $iLWork, False)
+	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
+
+	; reserve memory for the result
+	Local $mX = _blas_createVector($iM, $sDataType), $pX = $mX.ptr, _
+	      $mY = _blas_createVector($iP, $sDataType), $pY = $mY.ptr
+
+	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "ggglm", _
+		"INT*", $iN, _                      ; N
+		"INT*", $iM, _                      ; M
+		"INT*", $iP, _                      ; P
+		"PTR",  $pA, _                      ; A
+		"INT*", $iLDA, _                    ; lda
+		"PTR",  $pB, _                      ; B
+		"INT*", $iLDB, _                    ; LDB
+		"PTR",  $pD, _                      ; D
+		"PTR",  $pX, _                      ; X
+		"PTR",  $pY, _                      ; Y
+		"PTR",  DllStructGetPtr($tWork) , _ ; WORK buffer (here 1 element because we only determine the size)
+		"INT*", $iLWORK, _                  ; LWORK
+		"INT*", 0 _                         ; INFO
+	)
+	If @error Then Return SetError(4, @error, False)
+	If $aDLL[13] <> 0 Then Return SetError(5, $aDLL[13], False)
+
+	Local $mRet[]
+	$mRet["x"] = $mX
+	$mRet["y"] = $mY
+	Return $mRet
+EndFunc
+
+
 #EndRegion
 
 #Region auxiliary functions
