@@ -53,6 +53,8 @@
 ; _lp_gelss  - solves overdetermined or underdetermined linear system A · X = B using SVD factorization
 ; _lp_gelsy  - solves overdetermined or underdetermined linear system A · X = B using QR decomposition with column pivoting
 ; _lp_geqrs  - solves overdetermined or underdetermined linear system A · X = B using the results of the QR decomposition from _lp_geqrf()
+; _lp_gglse  - solves the overdetermined system of equations A * x = c while satisfying the restrictions B * x = d
+; _lp_ggglm  - solves a general Gauss-Markov system of equations d = A*x + B*y which combines observations and restrictions in one model
 ;
 ; ---- auxiliary functions ----
 ; _lp_lassq  - calculate the sum of squares of elements of a matrix/vector
