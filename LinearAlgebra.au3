@@ -5248,10 +5248,6 @@ Func __la_adj_GaussNewton($mObservations, $mParams, $sLstSqAlgo = "QR", $iFlagsL
 		; derive model predicted observation values y0
 		__la_adj_getYfromModel($mObservations, $mParams, $tY0)
 
-		Local $aA = _blas_toArray($mA)
-		Local $aY = _blas_toArray($mY)
-		Clipput(_ArrayToString($aA, ","))
-
 		; calculate residual vector r = y - y0  --> y0
 		_blas_scal($mY0.ptr, -1, 0, 1, $iM)
 		_blas_axpy($mY.ptr, $mY0.ptr, 1, 0, 0, 1, 1, $iM)
