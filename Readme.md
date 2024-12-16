@@ -51,6 +51,7 @@ _la_duplicate          - creates an independent copy of a matrix/vector map
 _la_fromFile           - reads a matrix or a vector from a file created by _la_toFile()
 
 ---- extraction/transforming ----
+_la_extractBlock       - extract a block matrix from a given matrix
 _la_join               - combines 2 matrices
 _la_transpose          - transposes a matrix in-place or out-place and [optional] scaling
 _la_ReDim              - changes the shape of a matrix by by changing the number of columns (also matrix <-> vector conversion)

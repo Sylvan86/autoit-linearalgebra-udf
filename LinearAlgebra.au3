@@ -28,6 +28,7 @@
 ; _la_fromFile           - reads a matrix or a vector from a file created by _la_toFile()
 ;
 ; ---- extraction/transforming ----
+; _la_extractBlock       - extract a block matrix from a given matrix
 ; _la_join               - combines 2 matrices
 ; _la_transpose          - transposes a matrix in-place or out-place and [optional] scaling
 ; _la_ReDim              - changes the shape of a matrix by by changing the number of columns (also matrix <-> vector conversion)
@@ -444,6 +445,67 @@ EndFunc
 #EndRegion
 
 #Region extraction/transforming
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _la_extractBlock()
+; Description ...: extract a block matrix from a given matrix
+; Syntax ........: _la_extractBlock($mA, [$iStartRow = 1, [$iStartCol = 1, [$iLastRow = Default, [$iLastCol = Default]]]])
+; Parameters ....: mA        - [Map] source matrix as a map/array/defintion string
+;                  iStartRow - [Int] (Default: 1)
+;                            ↳ start row of the sub-block (1-based)
+;                  iStartCol - [Int] (Default: 1)
+;                            ↳ start columnt of the sub-block (1-based)
+;                  iLastRow  - [Int] (Default: Default)
+;                            ↳ end row of the sub-block (1-based)
+;                  iLastCol  - [Int] (Default: Default)
+;                            ↳ end column of the sub-block (1-based)
+; Return value ..: Success: $mOut
+;                  Failure: Null and set @error to:
+;                           | 1: invalid value for mA
+;                           | 2: iStartRow > iLastRow (@extended: iLastRow)
+;                           | 3: iStartCol > iLastCol (@extended: iLastCol)
+;                           | 4: iStartRow > rows of A (@extended: iStartRow)
+;                           | 5: iStartCol > columns of A (@extended: iStartCol)
+; Author ........: AspirinJunkie
+; Modified.......: 2024-12-16
+; Remarks .......:
+; Related .......: _lp_lacpy()
+; Link ..........:
+; Example .......: Yes
+;                  Global $mA = _la_fromArray('[[1,2,3,4,5],[6,7,8,9,10],[11,12,13,14,15],[16,17,18,19,20],[21,22,23,24,25],[26,27,28,29,30]]')
+;                  Global $mBlock = _la_extractBlock($mA, 2, 2, 3, 4)
+;                  _la_display($mBlock, "extracted block")
+; ===============================================================================================================================
+Func _la_extractBlock($mA, $iStartRow = 1, $iStartCol = 1, $iLastRow = Default, $iLastCol = Default)
+	; direct AutoIt-type input
+	If IsArray($mA) Or IsString($mA) Then $mA = _blas_fromArray($mA)
+
+	; validation of the input parameters
+	If Not MapExists($mA, "ptr") Then Return SetError(1, 1, Null)
+
+	Local $iM        = $mA.rows, $iN = $mA.cols = 0 ? 1 : $mA.cols, $iSizeA = $iM * $iN, _
+	      $sDataType = $mA.datatype, _
+	      $dSize     = ($sDataType = "DOUBLE") ? $iBLAS_SIZE_DOUBLE : $iBLAS_SIZE_FLOAT
+
+	If IsKeyword($iLastRow) = 1 Then $iLastRow = $iM
+	If IsKeyword($iLastCol) = 1 Then $iLastCol = $iN
+
+	Local $iNewRows = $iLastRow - $iStartRow + 1, _
+	      $iNewCols = $iLastCol - $iStartCol + 1
+
+	; validation of the input parameters
+	If $iStartRow > $iLastRow Then Return SetError(2, $iLastRow, Null)
+	If $iStartCol > $iLastCol Then Return SetError(3, $iLastCol, Null)
+	If $iLastRow  > $iM       Then Return SetError(4, $iLastRow, Null)
+	If $iLastCol  > $iN       Then Return SetError(5, $iLastCol, Null)
+
+	Local $mOut = _blas_createMatrix($iNewRows, $iNewCols, $sDataType), _
+	      $pA   = $mA.ptr + ($dSize * ($iStartRow - 1)) + ($dSize * (($iStartCol - 1) * $iM))
+
+	_lp_lacpy($pA, $mOut.ptr, "X", $iNewRows, $iNewCols, $iM, $iNewRows, $sDataType)
+
+	Return $mOut
+EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_join()
