@@ -65,6 +65,7 @@ _la_VectorToDiag       - creates a diagonal matrix from a vector
 _la_display            - displays a matrix/vector map, similar to _ArrayDisplay
 _la_toArray            - converts a matrix/vector map into an AutoIt array
 _la_toFile             - write a matrix/vector into a file
+_la_toString           - returns a matrix/vector as a (formatted) string
 
 ---- scalar operations ----
 _la_rotate             - applies a plane rotation to coordinate-pairs

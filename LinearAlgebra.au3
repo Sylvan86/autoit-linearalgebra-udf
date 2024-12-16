@@ -42,6 +42,7 @@
 ; _la_display            - displays a matrix/vector map, similar to _ArrayDisplay
 ; _la_toArray            - converts a matrix/vector map into an AutoIt array
 ; _la_toFile             - write a matrix/vector into a file
+; _la_toString           - returns a matrix/vector as a (formatted) string
 ;
 ; ---- scalar operations ----
 ; _la_rotate             - applies a plane rotation to coordinate-pairs
@@ -459,7 +460,7 @@ EndFunc
 ;                            ↳ end row of the sub-block (1-based)
 ;                  iLastCol  - [Int] (Default: Default)
 ;                            ↳ end column of the sub-block (1-based)
-; Return value ..: Success: $mOut
+; Return value ..: Success: [Map] the extracted block matrix
 ;                  Failure: Null and set @error to:
 ;                           | 1: invalid value for mA
 ;                           | 2: iStartRow > iLastRow (@extended: iLastRow)
@@ -1040,6 +1041,149 @@ Func _la_toFile($mMatrix, $sFile, $nMode = 0, Const $sType = "DOUBLE", $iKL = 0,
 
 	Return SetExtended($mMatrix.size, True)
 EndFunc
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _la_toString()
+; Description ...: returns a matrix/vector as a (formatted) string
+; Syntax ........: _la_toString($mMatrix, [$cRowSep = @CRLF, [$cColSep = @TAB, [$dFlags = 2, [$cDecimalSep = Default, [$dPrecision = Default, [$cFormatType = "g", [$sRowStart = "", [$sRowEnd = ""]]]]]]]])
+; Parameters ....: mMatrix     - [Map] matrix/vector as a map/array/definition string
+;                  cRowSep     - [Char] (Default: @CRLF)
+;                              ↳ string used to separate lines
+;                  cColSep     - [Char] (Default: @TAB)
+;                              ↳ string used to separate columns
+;                  dFlags      - [Int] (Default: 2)
+;                              ↳ Options as a combination of the following values:
+;                                1: Table formatting: All values in a column are written one below the other
+;                                2: attached zeros are removed
+;                                4: column values are aligned at the decimal separator
+;                  cDecimalSep - [Char] (Default: Default)
+;                              ↳ decimal separator (defaults to ".")
+;                  dPrecision  - [Int] (Default: Default)
+;                              ↳ number of decimal places to be displayed
+;                  sRowStart   - [String] (Default: "")
+;                              ↳ string which precedes each line
+;                  sRowEnd     - [String] (Default: "")
+;                              ↳ string that is added after each line
+;                  cFormatType - [Char] (Default: "g")
+;                              ↳ format type - see StringFormat for corresponding values
+; Return value ..: Success: [String] the input matrix as a formatted string
+;                  Failure: Null and set @error to:
+;                           | 1: invalid value for mMatrix
+;                           |1X: error X during _blas_toArray() (@extended: @extended from _blas_toArray())
+; Author ........: AspirinJunkie
+; Modified.......: 2024-12-16
+; Remarks .......:
+; Related .......: _blas_toArray()
+; Link ..........:
+; Example .......: Yes
+;                  Global $mA = _la_fromArray('[[1.23432,26346463.6512512, 3.1],[4.6161, 5.7436, 6.7246234],[7.6131, 8.872, 9.12]]')
+;                  ConsoleWrite(@CRLF & _la_toString($mA) & @CRLF & @CRLF)
+;                  ConsoleWrite(_la_toString($mA, @CRLF, " ", 1+2+4, ",", 5, "|", "|") & @CRLF & @CRLF)
+; ===============================================================================================================================
+Func _la_toString(Const ByRef $mMatrix, $cRowSep = @CRLF, $cColSep = @TAB, $dFlags = 2, $cDecimalSep = Default, $dPrecision = Default, $sRowStart = "", $sRowEnd = "", $cFormatType = "g")
+	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
+	If Not (IsMap($mMatrix) And MapExists($mMatrix, "ptr")) Then Return SetError(1, 0, Null)
+
+	Local $sRet = "", $i, $j, $sValue_
+	      $sFormatString = IsKeyword($dPrecision) = 1 ? "%" & $cFormatType : "%." & $dPrecision & $cFormatType
+
+	Local $aData = _blas_toArray($mMatrix)
+	If @error Then Return SetError(10 + @error, 0, "")
+
+	Local $iR = UBound($aData, 1) - 1, _
+	      $iC = UBound($aData, 2) - 1
+	If $iC < 0 Then $iC = 0
+
+	If BitAND($dFlags, 1) Then
+	; determine widths for the numbers
+		Local $aN[$iC + 1][4], _
+		      $dMaxReal, $dMaxDec, $dMaxLenNormal, $aParts
+
+		For $j = 0 To $iC
+			$dMaxReal = 0
+			$dMaxDec = 0
+			$dMaxLenNormal = 0
+
+			For $i = 0 To $iR
+				If UBound($aData, 0) = 1 Then
+				; vector
+					$aParts = StringSplit($aData[$i], ".", 3)
+					If StringLen(StringFormat($sFormatString, $aData[$i])) > $dMaxLenNormal Then $dMaxLenNormal = StringLen(StringFormat($sFormatString, $aData[$i]))
+				Else
+				; matrix
+					$aParts = StringSplit($aData[$i][$j], ".", 3)
+					If StringLen(StringFormat($sFormatString, $aData[$i][$j])) > $dMaxLenNormal Then $dMaxLenNormal = StringLen(StringFormat($sFormatString, $aData[$i][$j]))
+				EndIf
+
+				If StringLen($aParts[0]) > $dMaxReal Then $dMaxReal = StringLen($aParts[0])
+				If StringLen($aParts[1]) > $dMaxDec Then $dMaxDec = StringLen($aParts[1])
+				If BitAND($dFlags, 4) And $dMaxDec > $dPrecision Then $dMaxDec = $dPrecision
+			Next
+
+			$aN[$j][0] = $dMaxReal + $dMaxDec + 1
+			$aN[$j][1] = $dMaxReal
+			$aN[$j][2] = $dMaxDec
+			$aN[$j][3] = $dMaxLenNormal
+		Next
+	EndIf
+
+	If UBound($aData, 0) = 1 Then
+	; vector
+		For $i = 0 To $iR
+			$sRet &= $sRowStart
+
+			If BitAND($dFlags, 1) Then
+				If BitAND($dFlags, 4) Then
+					$sValue = StringFormat("%" & $aN[0][0] & "." & $aN[0][2] & "f", $aData[$i])
+				Else
+					$sValue = StringFormat("% " & $aN[0][3] & "s", StringFormat($sFormatString, $aData[$i]))
+				EndIf
+
+				If BitAND($dFlags, 2) Then $sValue = StringRegExpReplace($sValue, '(0(?=0*$))', ' ')
+			Else
+				$sValue = StringFormat($sFormatString, $aData[$i])
+			EndIf
+
+			If IsKeyword($cDecimalSep) <> 1 Then $sValue = StringReplace($sValue, '.', $cDecimalSep, 1, 1)
+			$sRet &= $sValue
+
+			$sRet &= $sRowEnd
+			If $i < $iR Then $sRet &= $cRowSep
+		Next
+
+	Else
+	; matrix
+		For $i = 0 To $iR
+			$sRet &= $sRowStart
+
+			For $j = 0 To $iC
+
+				If BitAND($dFlags, 1) Then
+
+					If BitAND($dFlags, 4) Then
+						$sValue = StringFormat("%" & $aN[$j][0] & "." & $aN[$j][2] & "f", $aData[$i][$j])
+					Else
+						$sValue = StringFormat("% " & $aN[$j][3] & "s", StringFormat($sFormatString, $aData[$i][$j]))
+					EndIf
+					If BitAND($dFlags, 2) Then $sValue = StringRegExpReplace($sValue, '(0(?=0*$))', ' ')
+					If IsKeyword($cDecimalSep) <> 1 Then $sValue = StringReplace($sValue, '.', $cDecimalSep, 1, 1)
+					$sRet &= $sValue
+				Else
+					$sValue = StringFormat($sFormatString, $aData[$i][$j])
+					If IsKeyword($cDecimalSep) <> 1 Then $sValue = StringReplace($sValue, '.', $cDecimalSep, 1, 1)
+					$sRet &= $sValue
+				EndIf
+
+				If $j < $iC Then $sRet &= $cColSep
+			Next
+			$sRet &= $sRowEnd
+
+			If $i < $iR Then $sRet &= $cRowSep
+		Next
+	EndIf
+
+	Return $sRet
+EndFunc   ;==>_la_ToArray
 
 #EndRegion
 
