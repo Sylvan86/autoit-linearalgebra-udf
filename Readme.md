@@ -51,7 +51,6 @@ _la_duplicate          - creates an independent copy of a matrix/vector map
 _la_fromFile           - reads a matrix or a vector from a file created by _la_toFile()
 
 ---- extraction/transforming ----
-_la_extractBlock       - extract a block matrix from a given matrix
 _la_join               - combines 2 matrices
 _la_transpose          - transposes a matrix in-place or out-place and [optional] scaling
 _la_ReDim              - changes the shape of a matrix by by changing the number of columns (also matrix <-> vector conversion)
@@ -60,6 +59,8 @@ _la_getColumn          - extracts a column of a matrix as a vector
 _la_getDiag            - extracts the diagonal of a matrix as a vector
 _la_getTriangle        - extract upper or lower triangle part of a matrix
 _la_VectorToDiag       - creates a diagonal matrix from a vector
+_la_extractBlock       - extract a block matrix from a given matrix
+_la_composeBlocks      - combines several matrices into a block matrix
 
 ---- data output ----
 _la_display            - displays a matrix/vector map, similar to _ArrayDisplay

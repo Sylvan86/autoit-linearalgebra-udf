@@ -28,7 +28,6 @@
 ; _la_fromFile           - reads a matrix or a vector from a file created by _la_toFile()
 ;
 ; ---- extraction/transforming ----
-; _la_extractBlock       - extract a block matrix from a given matrix
 ; _la_join               - combines 2 matrices
 ; _la_transpose          - transposes a matrix in-place or out-place and [optional] scaling
 ; _la_ReDim              - changes the shape of a matrix by by changing the number of columns (also matrix <-> vector conversion)
@@ -37,6 +36,8 @@
 ; _la_getDiag            - extracts the diagonal of a matrix as a vector
 ; _la_getTriangle        - extract upper or lower triangle part of a matrix
 ; _la_VectorToDiag       - creates a diagonal matrix from a vector
+; _la_extractBlock       - extract a block matrix from a given matrix
+; _la_composeBlocks      - combines several matrices into a block matrix
 ;
 ; ---- data output ----
 ; _la_display            - displays a matrix/vector map, similar to _ArrayDisplay
@@ -317,7 +318,7 @@ Func _la_createMatrix(Const $iR, Const $iC = $iR, Const $sType = "DOUBLE")
 	If $iC < 1 Then Return SetError(3, $iC, Null)
 
 	Local $mRet = _blas_createMatrix($iR, $iC, $sType)
-	Return SetError(@error + 10, @extended, $mRet)
+	Return SetError(@error ? @error + 10 : 0, @extended, $mRet)
 EndFunc
 
 ; #FUNCTION# ====================================================================================================================
@@ -446,6 +447,139 @@ EndFunc
 #EndRegion
 
 #Region extraction/transforming
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _la_composeBlocks()
+; Description ...: combines several matrices into a block matrix
+; Syntax ........: _la_composeBlocks($aMatrices)
+; Parameters ....: aMatrices - [2D-Array]
+;                            ↳ structure of the block matrix, where the elements can have the following values:
+;                              - [Map] Matrix as used in this UDF inserted at this position
+;                              - [String] "I": An identity matrix is generated at this position
+;                              - [Number] matrix filled completely with this value is generated at this position
+;                              Else: zero-matrix is generated at this position
+; Return value ..: Success: [Map] matrix object holds the combined block matrix
+;                  Failure: 0 and set @error to:
+;                           | 1: invalid value for aMatrices (@extended: number of dims of aMatrices)
+;                           |1X: error X during _la_createIdentity (@extended: @extended from _la_createIdentity())
+;                           |2X: error X during _la_createMatrix (@extended: @extended from _la_createMatrix())
+;                           |3X: error X during __blas_fillWithScalar (@extended: @extended from __blas_fillWithScalar())
+;                           |4X: error X during _la_createMatrix (@extended: @extended from _la_createMatrix())
+;                           |5X: error X during _lp_lacpy (@extended: @extended from _lp_lacpy())
+; Author ........: AspirinJunkie
+; Modified.......: 2024-12-17
+; Remarks .......: At least one element in each row and column must be a matrix object.
+;                  This is the only way to derive the dimensions of the rows and columns.
+; Related .......:
+; Link ..........:
+; Example .......: Yes
+;                  $mA = _la_fromArray('[[1,2,3,4],[5,6,7,8],[9,10,11,12]]')
+;                  $mB = _la_fromArray('[[1,0,0,0],[0,1,0,0],[0,0,1,0]]')
+;                  $mC = _la_fromArray('[[5],[5],[5]]')
+;                  Global $aMatrices[][] = [["I", $mA      ], _
+;                                           [$mB, 17.5, $mC], _
+;                                           [0, "I",    $mA]]
+;                  $mComposed = _la_composeBlocks($aMatrices)
+;                  _la_display($mComposed, "composed matrix")
+; ===============================================================================================================================
+Func _la_composeBlocks($aMatrices)
+	If UBound($aMatrices, 0) <> 2 Then Return SetError(1, UBound($aMatrices, 0), Null)
+
+	Local $iMM       = UBound($aMatrices, 1), $iNN = UBound($aMatrices, 2), _
+	      $iMR       = 0,                     $iNR = 0,                     $iLastRows = 0, $mMatrixCurr, _
+		  $sDataType, $dSize
+
+	Local $aDims[$iMM][$iNN], $aDimTmp[4], $aDimRows[$iMM], $aDimCols[$iNN]
+	For $i = 0 To $iMM - 1
+		For $j = 0 To $iNN - 1
+			$mMatrixCurr = $aMatrices[$i][$j]
+
+			If IsMap($mMatrixCurr) Then
+				If $sDataType = "" Then
+					$sDataType = $mMatrixCurr.datatype
+					  $dSize     = ($sDataType = "DOUBLE") ? $iBLAS_SIZE_DOUBLE : $iBLAS_SIZE_FLOAT
+				EndIf
+
+				$aDimTmp[0] = $mMatrixCurr.rows
+				$aDimTmp[1] = $mMatrixCurr.cols > 0 ? $mMatrixCurr.cols : 1
+
+				If $aDimTmp[0] > $aDimRows[$i] Then $aDimRows[$i] = $aDimTmp[0]
+				If $aDimTmp[1] > $aDimCols[$j] Then $aDimCols[$j] = $aDimTmp[1]
+			Else
+				$aDimTmp[0] = 0
+				$aDimTmp[1] = 0
+			EndIf
+			$aDims[$i][$j] = $aDimTmp
+		Next
+	Next
+
+	; loop again and dim the unknown elements
+	Local $iCoordRow = 0, $iCoordCol
+	For $i = 0 To $iMM - 1
+		$iCoordCol = 0
+
+		For $j = 0 To $iNN - 1
+			$mMatrixCurr = $aMatrices[$i][$j]
+
+			If Not IsMap($mMatrixCurr) Then
+
+				$aDimTmp[0] = $aDimRows[$i]
+				$aDimTmp[1] = $aDimCols[$j]
+				$aDimTmp[2] = $iCoordRow
+				$aDimTmp[3] = $iCoordCol
+
+				; create matrix
+				If IsString($mMatrixCurr) And $mMatrixCurr = "I" Then
+					$aMatrices[$i][$j] = _la_createIdentity($aDimTmp[0], $aDimTmp[1])
+					If @error Then Return SetError(10 + @error, @extended, Null)
+				ElseIf IsNumber($mMatrixCurr) And $mMatrixCurr <> 0 Then
+					$aMatrices[$i][$j] = _la_createMatrix($aDimTmp[0], $aDimTmp[1])
+					If @error Then Return SetError(20 + @error, @extended, Null)
+					__blas_fillWithScalar($aMatrices[$i][$j], $mMatrixCurr)
+					If @error Then Return SetError(30 + @error, @extended, Null)
+				EndIf
+			Else
+				$aDimTmp = $aDims[$i][$j]
+				$aDimTmp[2] = $iCoordRow
+				$aDimTmp[3] = $iCoordCol
+			EndIf
+
+			$aDims[$i][$j] = $aDimTmp
+
+			$iCoordCol += $aDimCols[$j]
+		Next
+
+		If $i = 0 Then $iNR = $iCoordCol
+		$iCoordRow += $aDimRows[$i]
+	Next
+	$iMR = $iCoordRow
+
+	Local $mRet = _la_createMatrix($iMR, $iNR), $pRet = $mRet.ptr, $aDimTmp
+	If @error Then Return SetError(40 + @error, @extended, Null)
+	For $i = 0 To $iMM - 1
+		For $j = 0 To $iNN - 1
+			$aDimTmp = $aDims[$i][$j]
+			If Not IsMap($aMatrices[$i][$j]) Then ContinueLoop
+
+			_lp_lacpy($aMatrices[$i][$j], _                                        ; A
+				$pRet + ($dSize * $aDimTmp[2]) + ($dSize * $aDimTmp[3] * $iMR), _  ; B
+				"X", _                                                             ; UPLO
+				$aDimTmp[0], _                                                     ; M
+				$aDimTmp[1], _                                                     ; N
+				$aDimTmp[0], _                                                     ; LDA
+				$iMR)                                                              ; LDB
+			If @error Then Return SetError(50 + @error, @extended, Null)
+		Next
+	Next
+
+	Return $mRet
+EndFunc
+
+
+
+
+
+
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_extractBlock()
@@ -1080,7 +1214,7 @@ EndFunc
 ;                  ConsoleWrite(@CRLF & _la_toString($mA) & @CRLF & @CRLF)
 ;                  ConsoleWrite(_la_toString($mA, @CRLF, " ", 1+2+4, ",", 5, "|", "|") & @CRLF & @CRLF)
 ; ===============================================================================================================================
-Func _la_toString(Const ByRef $mMatrix, $cRowSep = @CRLF, $cColSep = @TAB, $dFlags = 2, $cDecimalSep = Default, $dPrecision = Default, $sRowStart = "", $sRowEnd = "", $cFormatType = "g")
+Func _la_toString(Const ByRef $mMatrix, $cRowSep = @CRLF, $cColSep = @TAB, $dFlags = 0, $cDecimalSep = Default, $dPrecision = Default, $sRowStart = "", $sRowEnd = "", $cFormatType = "g")
 	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
 	If Not (IsMap($mMatrix) And MapExists($mMatrix, "ptr")) Then Return SetError(1, 0, Null)
 
