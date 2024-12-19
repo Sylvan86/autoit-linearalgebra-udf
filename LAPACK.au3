@@ -49,9 +49,11 @@
 ;
 ; ---- least squares ----
 ; _lp_gels   - solves overdetermined or underdetermined linear system A · X = B using QR/LQ factorization
+; _lp_gelst  - solves overdetermined or underdetermined linear system A · X = B using QR/LQ factorization with block factorization
 ; _lp_getsls - solves overdetermined or underdetermined linear system A · X = B using tall-skinny/short-wide QR/LQ factorization
-; _lp_gelss  - solves overdetermined or underdetermined linear system A · X = B using SVD factorization
 ; _lp_gelsy  - solves overdetermined or underdetermined linear system A · X = B using QR decomposition with column pivoting
+; _lp_gelss  - solves overdetermined or underdetermined linear system A · X = B using SVD factorization
+; _lp_gelsd  - solves overdetermined or underdetermined linear system A · X = B using SVD factorization using modern divide & conquer algorithms
 ; _lp_geqrs  - solves overdetermined or underdetermined linear system A · X = B using the results of the QR decomposition from _lp_geqrf()
 ; _lp_gglse  - solves the overdetermined system of equations A * x = c while satisfying the restrictions B * x = d
 ; _lp_ggglm  - solves a general Gauss-Markov system of equations d = A*x + B*y which combines observations and restrictions in one model
@@ -2101,6 +2103,122 @@ Func _lp_gels($mA, $mB, $cTRANS = "N", $iNRHS = Default, $iM = Default, $iN = De
 
 EndFunc
 
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_gelst()
+; Description ...: solves overdetermined or underdetermined linear system A · X = B
+;                  using QR/LQ factorization with block factorization
+; Syntax ........: _lp_gelst($mA, $mB, [$cTRANS = "N", [$iNRHS = Default, [$iM = Default, [$iN = Default, [$iLDA = $iM, [$iLDB = $iN, [$sDataType = "DOUBLE"]]]]]]])
+; Parameters ....: mA        - [Map] matrix A (M × N) as a map, DllStruct or pointer (will be overwritten)
+;                              on exit, contain the result of _lp_geqrf() (useful for deriving the cofactor matrix of the parameters)
+;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
+;                            ↳ on exit, contain the solution values X in the first N elements and residual sum vᵀv in the last elements
+;                  cTRANS    - [Char] (Default: "N")
+;                            ↳ "N": A  · X = B
+;                              "T": Aᵀ · X = B
+;                  iNRHS     - [Int] (Default: Default)
+;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
+;                  iM        - [Int] (Default: Default)
+;                            ↳ number of rows of the matrix A
+;                  iN        - [Int] (Default: Default)
+;                            ↳ number of columns of the matrix A
+;                  iLDA      - [Int] (Default: $iM)
+;                            ↳ leading dimension of the array A (rows)
+;                  iLDB      - [Int] (Default: $iN)
+;                            ↳ leading dimension of the array B (max(M,N))
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: True (@extended = size of WORK)
+;                  Failure: False and set @error to:
+;                           | 1: error during first DllCall of gelst (@extended: @error from DllCall)
+;                           | 2: error inside first call of gelst (@extended: INFO-value from gelst)
+;                           | 3: determined size of WORK is not valid (@extended: determined LWORK)
+;                           | 4: error during second DllCall of gelst (@extended: @error from DllCall)
+;                           | 5: error inside second call of gelst (@extended: INFO-value from gelst)
+; Author ........: AspirinJunkie
+; Modified.......: 2024-12-19
+; Remarks .......: better performance than _lp_gels(), especially for large matrices
+; Related .......:
+; Link ..........: https://www.netlib.org/lapack/explore-html/d5/d0a/group__gelst_gae141e4543c11bbe977dbc1dbc1d07487.html#gae141e4543c11bbe977dbc1dbc1d07487
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[1.0,2.0,0.5],[2.0,1.0,1.0],[1.5,1.5,1.5],[1.0,1.0,2.0],[0.5,2.5,1.0],[2.5,0.5,1.5]]")
+;                  Global $mb = _blas_fromArray("[5.5,7.0,8.5,8.0,7.5,8.0]")
+;                  _lp_gels($mA, $mB)
+;                  $mB.elements = $mA.cols
+;                  $mB.size     = $mA.cols
+;                  _blas_display($mB, "solution vector/matrix x")
+; ===============================================================================================================================
+Func _lp_gelst($mA, $mB, $cTRANS = "N", $iNRHS = Default, $iM = Default, $iN = Default, $iLDA = $iM, $iLDB = $iN, $sDataType = "DOUBLE")
+	Local $pA, $pB ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iM) = 1 Then $iM = $cTRANS = "N" ? $mA.rows : $mA.cols
+			If IsKeyword($iN) = 1 Then $iN = $cTRANS = "N" ? $mA.cols : $mA.rows
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+	Select
+		Case IsMap($mB)
+			$pB = $mB.ptr
+		Case IsPtr($mB)
+			$pB = $mB
+		Case IsDllStruct($mB)
+			$pB = DllStructGetPtr($mB)
+	EndSelect
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	If IsKeyword($iLDA)  = 1 Then $iLDA = $iM
+	If IsKeyword($iLDB)  = 1 Then $iLDB = ($iM > $iN ? $iM : $iN)
+	If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols < 1 ? 1 : $mB.cols
+
+	; set char buffers and input healing:
+	DllStructSetData($tBLASCHAR1, 1, $cTRANS <> "N" ? "T" : "N")
+
+	; first run: determine optimal size of WORK
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gelst", _
+		"PTR",            $pBLASCHAR1, _ ; TRANS
+		"INT*",           $iM, _         ; M
+		"INT*",           $iN, _         ; N
+		"INT*",           $iNRHS, _      ; NRHS - 0: no solving - only LU factorization, >0: number of systems with different b`s to be solved (every b = columns in $mB)
+		"PTR",            0, _           ; A
+		"INT*",           $iLDA, _       ; lda
+		"PTR",            0, _           ; B
+		"INT*",           $iLDB, _       ; LDB
+		$sDataType & "*", 0, _           ; WORK buffer (here 1 element because we only determine the size)
+		"INT*",           -1, _          ; LWORK
+		"INT*",           0 _ 			 ; INFO
+	)
+	If @error Then Return SetError(1, @error, False)
+	If $aDLL[11] <> 0 Then Return SetError(2, $aDLL[11], False)
+
+	; declare working buffers
+	Local $iLWork = $aDLL[9]
+	If $iLWork < 1 Then Return SetError(3, $iLWork, False)
+	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
+
+	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gelst", _
+		"PTR",  $pBLASCHAR1, _              ; TRANS
+		"INT*", $iM, _                      ; M
+		"INT*", $iN, _                      ; N
+		"INT*", $iNRHS, _                   ; NRHS - 0: no solving - only LU factorization, >0: number of systems with different b`s to be solved (every b = columns in $mB)
+		"PTR",  $pA, _                      ; A
+		"INT*", $iLDA, _                    ; lda
+		"PTR",  $pB, _                      ; B
+		"INT*", $iLDB, _                    ; LDB
+		"PTR",  DllStructGetPtr($tWork) , _ ; WORK buffer (here 1 element because we only determine the size)
+		"INT*", $iLWORK, _                  ; LWORK
+		"INT*", 0 _ 			            ; INFO
+	)
+	If @error Then Return SetError(4, @error, False)
+	Return $aDLL[11] = 0 ? SetExtended($iLWORK, True) : SetError(5, $aDLL[11], False)
+
+EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_getsls()
@@ -2216,6 +2334,127 @@ Func _lp_getsls($mA, $mB, $cTRANS = "N", $iNRHS = Default, $iM = Default, $iN = 
 	)
 	If @error Then Return SetError(1, @error, False)
 	Return $aDLL[11] = 0 ? SetExtended($iLWORK, True) : SetError(2, $aDLL[11], False)
+
+EndFunc
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_gelsy()
+; Description ...: solves overdetermined or underdetermined linear system A · X = B
+;                  using QR decomposition with column pivoting
+; Syntax ........: _lp_gelsy($mA, $mB, [$iNRHS = Default, [$iM = Default, [$iN = Default, [$iLDA = $iM, [$iLDB = $iN, [$fRCOND = -1, [$sDataType = "DOUBLE"]]]]]]])
+; Parameters ....: mA        - [Map] matrix A (M × N) as a map, DllStruct or pointer (will be overwritten)
+;                              on exit, contain the results of its complete orthogonal factorization
+;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
+;                            ↳ on exit, contain the solution values X in the first N elements and residual sum vᵀv in the last elements
+;                  iNRHS     - [Int] (Default: Default)
+;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
+;                  iM        - [Int] (Default: Default)
+;                            ↳ number of rows of the matrix A
+;                  iN        - [Int] (Default: Default)
+;                            ↳ number of columns of the matrix A
+;                  iLDA      - [Int] (Default: $iM)
+;                            ↳ leading dimension of the array A (rows)
+;                  iLDB      - [Int] (Default: $iN)
+;                            ↳ leading dimension of the array B (max(M,N))
+;                  fRCOND    - [Float] (Default: -1)
+;                            ↳ used as threshold to determine the effective rank of A
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: permutation vector JPVT as DllStruct (@extended = rank of matrix A)
+;                  Failure: Null and set @error to:
+;                           | 1: error during first DllCall of gelsy (@extended: @error from DllCall)
+;                           | 2: error inside first call of gelsy (@extended: INFO-value from gelsy)
+;                           | 3: determined size of WORK is not valid (@extended: determined LWORK)
+;                           | 4: error during second DllCall of gelsy (@extended: @error from DllCall)
+;                           | 5: error inside second call of gelsy (@extended: INFO-value from gelsy)
+; Author ........: AspirinJunkie
+; Modified.......: 2024-09-02
+; Remarks .......: numerically more stable than _lp_gels() and useful if the matrix A has numerical instabilities or rank deficiencies.
+;                  for retrieve cofactor matrix for the parameters you have firstly rearange A with _lp_lapmt with bForward = False
+; Related .......:
+; Link ..........: https://www.netlib.org/lapack/explore-html/dc/d8b/group__gelsy_ga6d1d46ead18df76e993cd4eda6dc1bbb.html#ga6d1d46ead18df76e993cd4eda6dc1bbb
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[1.0,2.0,0.5],[2.0,1.0,1.0],[1.5,1.5,1.5],[1.0,1.0,2.0],[0.5,2.5,1.0],[2.5,0.5,1.5]]")
+;                  Global $mb = _blas_fromArray("[5.5,7.0,8.5,8.0,7.5,8.0]")
+;                  _lp_gelsy($mA, $mB)
+;                  $mB.elements = $mA.cols
+;                  $mB.size     = $mA.cols
+;                  _blas_display($mB, "rank:" & @extended)
+; ===============================================================================================================================
+Func _lp_gelsy($mA, $mB, $iNRHS = Default, $iM = Default, $iN = Default, $iLDA = $iM, $iLDB = $iN, $fRCOND = 1e5, $sDataType = "DOUBLE")
+	Local $pA, $pB ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iM) = 1 Then $iM = $mA.rows
+			If IsKeyword($iN) = 1 Then $iN = $mA.cols
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+	Select
+		Case IsMap($mB)
+			$pB = $mB.ptr
+		Case IsPtr($mB)
+			$pB = $mB
+		Case IsDllStruct($mB)
+			$pB = DllStructGetPtr($mB)
+	EndSelect
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	If IsKeyword($iLDA)  = 1 Then $iLDA = $iM
+	If IsKeyword($iLDB)  = 1 Then $iLDB = ($iM > $iN ? $iM : $iN)
+	If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols < 1 ? 1 : $mB.cols
+
+	; first run: determine optimal size of WORK
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gelsy", _
+		"INT*",           $iM, _         ; M
+		"INT*",           $iN, _         ; N
+		"INT*",           $iNRHS, _      ; NRHS - 0: no solving - only LU factorization, >0: number of systems with different b`s to be solved (every b = columns in $mB)
+		"PTR",            0, _           ; A
+		"INT*",           $iLDA, _       ; lda
+		"PTR",            0, _           ; B
+		"INT*",           $iLDB, _       ; LDB
+		"PTR",            0, _           ; JPVT
+		$sDataType & "*", 0, _           ; RCOND
+		"INT*",           0, _           ; RANK
+		$sDataType & "*", 0, _           ; WORK buffer (here 1 element because we only determine the size)
+		"INT*",           -1, _          ; LWORK
+		"INT*",           0 _ 			 ; INFO
+	)
+	If @error Then Return SetError(1, @error, Null)
+	If $aDLL[13] <> 0 Then Return SetError(2, $aDLL[13], Null)
+
+	; set JPVT Buffer
+	Local $tJPVT = DllStructCreate("INT[" & $iN & "]")
+
+	; declare working buffers
+	Local $iLWork = $aDLL[11]
+	If $iLWork < 1 Then Return SetError(3, $iLWork, Null)
+	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
+
+	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gelsy", _
+		"INT*",           $iM, _                      ; M
+		"INT*",           $iN, _                      ; N
+		"INT*",           $iNRHS, _                   ; NRHS - 0: no solving - only LU factorization, >0: number of systems with different b`s to be solved (every b = columns in $mB)
+		"PTR",            $pA, _                      ; A
+		"INT*",           $iLDA, _                    ; lda
+		"PTR",            $pB, _                      ; B
+		"INT*",           $iLDB, _                    ; LDB
+		"PTR",            DllStructGetPtr($tJPVT), _  ; JPVT
+		$sDataType & "*", $fRCOND, _                  ; RCOND
+		"INT*",           0, _                        ; RANK
+		"PTR",            DllStructGetPtr($tWork), _  ; WORK
+		"INT*",           $iLWork, _                  ; LWORK
+		"INT*",           0 _ 			              ; INFO
+	)
+	If @error Then Return SetError(4, @error, Null)
+	Return $aDLL[13] = 0 ? SetExtended($aDLL[10], $tJPVT) : SetError(5, $aDLL[13], Null)
 
 EndFunc
 
@@ -2348,14 +2587,17 @@ Func _lp_gelss($mA, $mB, $cTRANS = "N", $iNRHS = Default, $iM = Default, $iN = D
 EndFunc
 
 ; #FUNCTION# ====================================================================================================================
-; Name ..........: _lp_gelsy()
+; Name ..........: _lp_gelsd()
 ; Description ...: solves overdetermined or underdetermined linear system A · X = B
-;                  using QR decomposition with column pivoting
-; Syntax ........: _lp_gelsy($mA, $mB, [$iNRHS = Default, [$iM = Default, [$iN = Default, [$iLDA = $iM, [$iLDB = $iN, [$fRCOND = -1, [$sDataType = "DOUBLE"]]]]]]])
+;                  using SVD factorization using modern divide & conquer algorithms
+; Syntax ........: _lp_gelsd($mA, $mB, [$cTRANS = "N", [$iNRHS = Default, [$iM = Default, [$iN = Default, [$iLDA = $iN, [$iLDB = $iN, [$fRCOND = -1, [$sDataType = "DOUBLE"]]]]]]]])
 ; Parameters ....: mA        - [Map] matrix A (M × N) as a map, DllStruct or pointer (will be overwritten)
-;                              on exit, contain the results of its complete orthogonal factorization
+;                              on exit, contain the result of _lp_geqrf() (useful for deriving the cofactor matrix of the parameters)
 ;                  mB        - [Map] vector/matrix N × NRHS A as a map, DllStruct or pointer (will be overwritten)
 ;                            ↳ on exit, contain the solution values X in the first N elements and residual sum vᵀv in the last elements
+;                  cTRANS    - [Char] (Default: "N")
+;                            ↳ "N": A  · X = B
+;                              "T": Aᵀ · X = B
 ;                  iNRHS     - [Int] (Default: Default)
 ;                            ↳ number of right hand sides, i.e., the number of columns of the matrix B (to solve multiple systems at once)
 ;                  iM        - [Int] (Default: Default)
@@ -2367,31 +2609,30 @@ EndFunc
 ;                  iLDB      - [Int] (Default: $iN)
 ;                            ↳ leading dimension of the array B (max(M,N))
 ;                  fRCOND    - [Float] (Default: -1)
-;                            ↳ used as threshold to determine the effective rank of A
+;                            ↳ threshold value up to which singular values are regarded as zero (-1 = machine precision)
 ;                  sDataType - [String] (Default: "DOUBLE")
 ;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
-; Return value ..: Success: permutation vector JPVT as DllStruct (@extended = rank of matrix A)
+; Return value ..: Success: matrix S as Dllstruct (@extended: rank of matrix A)
 ;                  Failure: Null and set @error to:
-;                           | 1: error during first DllCall of gelsy (@extended: @error from DllCall)
-;                           | 2: error inside first call of gelsy (@extended: INFO-value from gelsy)
+;                           | 1: error during first DllCall of gelsd (@extended: @error from DllCall)
+;                           | 2: error inside first call of gelsd (@extended: INFO-value from gelsd)
 ;                           | 3: determined size of WORK is not valid (@extended: determined LWORK)
-;                           | 4: error during second DllCall of gelsy (@extended: @error from DllCall)
-;                           | 5: error inside second call of gelsy (@extended: INFO-value from gelsy)
+;                           | 4: error during second DllCall of gelsd (@extended: @error from DllCall)
+;                           | 5: error inside second call of gelsd (@extended: INFO-value from gelsd)
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-02
-; Remarks .......: numerically more stable than _lp_gels() and useful if the matrix A has numerical instabilities or rank deficiencies.
-;                  for retrieve cofactor matrix for the parameters you have firstly rearange A with _lp_lapmt with bForward = False
+; Remarks .......: better performance than _lp_gelss(), especially for large matrices but may require more memory
 ; Related .......:
-; Link ..........: https://www.netlib.org/lapack/explore-html/dc/d8b/group__gelsy_ga6d1d46ead18df76e993cd4eda6dc1bbb.html#ga6d1d46ead18df76e993cd4eda6dc1bbb
+; Link ..........: https://www.netlib.org/lapack/explore-html/d9/d67/group__gelsd_ga0bee7e1b9e7e43f59ecf2419b2759c42.html#ga0bee7e1b9e7e43f59ecf2419b2759c42
 ; Example .......: Yes
 ;                  Global $mA = _blas_fromArray("[[1.0,2.0,0.5],[2.0,1.0,1.0],[1.5,1.5,1.5],[1.0,1.0,2.0],[0.5,2.5,1.0],[2.5,0.5,1.5]]")
 ;                  Global $mb = _blas_fromArray("[5.5,7.0,8.5,8.0,7.5,8.0]")
-;                  _lp_gelsy($mA, $mB)
+;                  Global $tS = _lp_gelsd($mA, $mB)
 ;                  $mB.elements = $mA.cols
 ;                  $mB.size     = $mA.cols
-;                  _blas_display($mB, "rank:" & @extended)
+;                  _blas_display($mB, "solution vector/matrix x")
 ; ===============================================================================================================================
-Func _lp_gelsy($mA, $mB, $iNRHS = Default, $iM = Default, $iN = Default, $iLDA = $iM, $iLDB = $iN, $fRCOND = 1e5, $sDataType = "DOUBLE")
+Func _lp_gelsd($mA, $mB, $cTRANS = "N", $iNRHS = Default, $iM = Default, $iN = Default, $iLDA = $iN, $iLDB = $iN, $fRCOND = -1, $sDataType = "DOUBLE")
 	Local $pA, $pB ; pointer to the data in memory
 
 	; Set parameters depending on the input type
@@ -2417,38 +2658,44 @@ Func _lp_gelsy($mA, $mB, $iNRHS = Default, $iM = Default, $iN = Default, $iLDA =
 
 	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
 
-	If IsKeyword($iLDA)  = 1 Then $iLDA = $iM
-	If IsKeyword($iLDB)  = 1 Then $iLDB = ($iM > $iN ? $iM : $iN)
+	If IsKeyword($iLDA) = 1 Then $iLDA = $iM
+	If IsKeyword($iLDB) = 1 Then $iLDB = ($iM > $iN ? $iM : $iN)
 	If IsKeyword($iNRHS) = 1 Then $iNRHS = $mB.cols < 1 ? 1 : $mB.cols
 
+	; set char buffers and input healing:
+	DllStructSetData($tBLASCHAR1, 1, $cTRANS <> "N" ? "T" : "N")
+
+	; output buffers
+	Local $iMinMN = ($iM < $iN ? $iM : $iN)
+	Local $tS  = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iMinMN))
+
 	; first run: determine optimal size of WORK
-	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gelsy", _
-		"INT*",           $iM, _         ; M
-		"INT*",           $iN, _         ; N
-		"INT*",           $iNRHS, _      ; NRHS - 0: no solving - only LU factorization, >0: number of systems with different b`s to be solved (every b = columns in $mB)
-		"PTR",            0, _           ; A
-		"INT*",           $iLDA, _       ; lda
-		"PTR",            0, _           ; B
-		"INT*",           $iLDB, _       ; LDB
-		"PTR",            0, _           ; JPVT
-		$sDataType & "*", 0, _           ; RCOND
-		"INT*",           0, _           ; RANK
-		$sDataType & "*", 0, _           ; WORK buffer (here 1 element because we only determine the size)
-		"INT*",           -1, _          ; LWORK
-		"INT*",           0 _ 			 ; INFO
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gelsd", _
+		"INT*",           $iM, _                   ; M
+		"INT*",           $iN, _                   ; N
+		"INT*",           $iNRHS, _                ; NRHS - 0: no solving - only LU factorization, >0: number of systems with different b`s to be solved (every b = columns in $mB)
+		"PTR",            0, _                     ; A
+		"INT*",           $iLDA, _                 ; lda
+		"PTR",            0, _                     ; B
+		"INT*",           $iLDB, _                 ; LDB
+		"PTR",            0, _                     ; S
+		$sDataType & "*", 0, _                     ; RCOND
+		"INT*",           0, _                     ; RANK
+		$sDataType & "*", 0, _                     ; WORK buffer (here 1 element because we only determine the size)
+		"INT*",           -1, _                    ; LWORK
+		"INT*",           0, _                     ; IWORK
+		"INT*",           0 _ 			           ; INFO
 	)
 	If @error Then Return SetError(1, @error, Null)
-	If $aDLL[13] <> 0 Then Return SetError(2, $aDLL[13], Null)
-
-	; set JPVT Buffer
-	Local $tJPVT = DllStructCreate("INT[" & $iN & "]")
+	If $aDLL[14] <> 0 Then Return SetError(2, $aDLL[14], Null)
 
 	; declare working buffers
 	Local $iLWork = $aDLL[11]
 	If $iLWork < 1 Then Return SetError(3, $iLWork, Null)
-	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
+	Local $tWork  = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
+	Local $tIWORK = DllStructCreate(StringFormat("INT[%d]", $aDLL[13]))
 
-	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gelsy", _
+	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "gelsd", _
 		"INT*",           $iM, _                      ; M
 		"INT*",           $iN, _                      ; N
 		"INT*",           $iNRHS, _                   ; NRHS - 0: no solving - only LU factorization, >0: number of systems with different b`s to be solved (every b = columns in $mB)
@@ -2456,16 +2703,18 @@ Func _lp_gelsy($mA, $mB, $iNRHS = Default, $iM = Default, $iN = Default, $iLDA =
 		"INT*",           $iLDA, _                    ; lda
 		"PTR",            $pB, _                      ; B
 		"INT*",           $iLDB, _                    ; LDB
-		"PTR",            DllStructGetPtr($tJPVT), _  ; JPVT
+		"PTR",            DllStructGetPtr($tS), _     ; S
 		$sDataType & "*", $fRCOND, _                  ; RCOND
 		"INT*",           0, _                        ; RANK
-		"PTR",            DllStructGetPtr($tWork), _  ; WORK
+		"PTR",            DllStructGetPtr($tWork), _  ; WORK buffer (here 1 element because we only determine the size)
 		"INT*",           $iLWork, _                  ; LWORK
+		"INT*",           DllStructGetPtr($tIWORK), _ ; IWORK
 		"INT*",           0 _ 			              ; INFO
 	)
 	If @error Then Return SetError(4, @error, Null)
-	Return $aDLL[13] = 0 ? SetExtended($aDLL[10], $tJPVT) : SetError(5, $aDLL[13], Null)
+	If $aDLL[14] <> 0 Then Return SetError(5, $aDLL[14], Null)
 
+	Return SetExtended($aDLL[10], $tS)
 EndFunc
 
 ; #FUNCTION# ====================================================================================================================
@@ -2654,6 +2903,7 @@ Func _lp_gglse($mA, $mB, $mC, $mD, $iM = Default, $iN = Default, $iP =Default, $
 	)
 	If @error Then Return SetError(1, @error, False)
 	If $aDLL[13] <> 0 Then Return SetError(2, $aDLL[13], False)
+
 	; declare working buffers
 	Local $iLWork = $aDLL[11]
 	If $iLWork < 1 Then Return SetError(3, $iLWork, False)
