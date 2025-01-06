@@ -87,6 +87,7 @@ _la_amin               - finds the first element having the minimum absolute(!) 
 _la_amax               - finds the first element having the maximum absolute(!) value
 _la_norm               - calculate the euclidian norm of a vector
 _la_mean               - calculate the mean of a vector or parts of a matrix
+_la_normalize          - normalizes a vector/matrix with different norms
 
 ---- element wise operations ----
 _la_sqrtElements       - calculates the square root of each element of a matrix/vector

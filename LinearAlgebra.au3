@@ -64,6 +64,7 @@
 ; _la_amax               - finds the first element having the maximum absolute(!) value
 ; _la_norm               - calculate the euclidian norm of a vector
 ; _la_mean               - calculate the mean of a vector or parts of a matrix
+; _la_normalize          - normalizes a vector/matrix with different norms
 ;
 ; ---- element wise operations ----
 ; _la_sqrtElements       - calculates the square root of each element of a matrix/vector
@@ -2104,7 +2105,7 @@ EndFunc
 ; Description ...: calculate the mean of a vector or parts of a matrix
 ; Syntax ........: _la_mean($mMatrix, [$iStart = 0, [$iStep = 1, [$iN = Default]]])
 ; Parameters ....: mMatrix - [Map] matrix/vector as a map/array/definition string
-;                  iiStart  - [Int] (Default: 0)
+;                  iStart  - [Int] (Default: 0)
 ;                          ↳ start element index (0-based)
 ;                  iStep   - [UInt] (Default: 1)
 ;                          ↳ storage spacing between elements of mMatrix (can be used to handle parts of a matrix as a vector)
@@ -2135,6 +2136,78 @@ Func _la_mean($mMatrix, $iStart = 0, $iStep = 1, $iN = Default)
 
 	Local $fSum = _la_sum($mMatrix, $iStart, $iStep, $iN, $mMatrix.datatype)
 	Return @error ? SetError(@error + 10, @extended, Null) : $fSum / @extended
+EndFunc
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _la_normalize()
+; Description ...: normalizes a vector/matrix with different norms
+; Syntax ........: _la_normalize($mMatrix, [$bInPlace = False, [$cNorm = "E", [$iStart = 0, [$iStep = 1, [$iN = Default]]]]])
+; Parameters ....: mMatrix  - [Map] matrix/vector as a map/array/definition string
+;                  bInPlace - [Bool] (Default: False)
+;                           ↳ True: mMatrix gets overwritten
+;                             False: mMatrix remains untouched
+;                  cNorm    - [Char] (Default: "E")
+;                            ↳ "E": euclidian norm
+;                              "1": one norm (max column sum)
+;                              "I": infinity norm (max row sum)
+;                              "F": Frobenius norm (square root of sum of squares)
+;                              "M": largest absolute value
+;                  iStart   - [Int] (Default: 0)
+;                           ↳ start index
+;                  iStep    - [Int] (Default: 1)
+;                           ↳ storage spacing between elements of mMatrix (can be used to handle parts of a matrix as a vector)
+;                  iN       - [Int] (Default: Default)
+;                           ↳ number of elements in input vector
+; Return value ..: Success: if bInPlace: [Number] the norm value - else: [Map] the normalized vector/matrix
+;                  Failure: Null and set @error to:
+;                           | 1: invalid value for mMatrix
+;                           | 2: norm is zero
+;                           |1X: error X during _blas_NRM2() (@extended: @extended from _blas_NRM2())
+;                           |2X: error X during _lp_lange() (@extended: @extended from _lp_lange())
+;                           |3X: error X during _lp_rscl() (@extended: @extended from _lp_rscl())
+; Author ........: AspirinJunkie
+; Modified.......: 2025-01-06
+; Remarks .......:
+; Related .......: _blas_NRM2, _lp_lange, _lp_rscl
+; Link ..........:
+; Example .......: Yes
+;                  Global $mNormalized = _la_normalize("[0.01,0.02,0.03,0.04,0.05,0.06]", False, "M")
+;                  _la_display($mNormalized)
+; ===============================================================================================================================
+Func _la_normalize(ByRef $mMatrix, $bInPlace = False, $cNorm = "E", $iStart = 0, $iStep = 1, $iN = Default)
+	; direct AutoIt-type input
+	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
+
+	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
+	If Not (IsMap($mMatrix) And MapExists($mMatrix, "ptr")) Then Return SetError(1, 0, Null)
+
+	; prevent overwrite if choosed
+	If Not $bInPlace Then $mMatrix = _la_duplicate($mMatrix)
+
+	; calculate number of elements if not defined
+	If IsKeyword($iN) = 1 Then $iN = Floor(($mMatrix.elements - $iStart) / $iStep)
+
+	Local Const $sDataType = $mMatrix.datatype, _
+				$cPrefix = ($sDataType = "FLOAT") ? "s" : "d", _
+				$dSize   = ($sDataType = "DOUBLE") ? $iBLAS_SIZE_DOUBLE : $iBLAS_SIZE_FLOAT
+
+	; calculate the norm of the vector/matrix
+	Local $fNorm
+	If $cNorm = "E" Then
+		$fNorm = _blas_NRM2($mMatrix, $iStart, $iStep, $iN)
+		If @error Then Return SetError(@error + 10, @extended, Null)
+	Else
+		$fNorm = _lp_lange($mMatrix.ptr + $dSize * $iStart, $cNorm, $iN, 1, $iN, $sDataType)
+		If @error Then Return SetError(@error + 20, @extended, Null)
+	EndIf
+
+	If $fNorm = 0.0 Then Return SetError(2, 0, Null)
+
+	; normalize input vector/matrix
+	If $fNorm <> 1.0 Then _lp_rscl($mMatrix, $fNorm)
+	If @error Then Return SetError(@error + 30, @extended, Null)
+
+	Return $bInPlace ? $fNorm : $mMatrix
 EndFunc
 
 
