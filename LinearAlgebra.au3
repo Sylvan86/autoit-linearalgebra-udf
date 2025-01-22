@@ -151,7 +151,7 @@ Global Const $f_LA_FLT_EPS = _lp_lamch("e", "FLOAT"),  $f_LA_FLT_MIN = _lp_lamch
 ; constants/flags to control what elements should be returned by the least square solution functions
 Global Enum Step *2 $__LA_LSTSQ_R = 1, $__LA_LSTSQ_R2Sum, $__LA_LSTSQ_S0, $__LA_LSTSQ_QX, $__LA_LSTSQ_SDX, $__LA_LSTSQ_QY, $__LA_LSTSQ_QYD, $__LA_LSTSQ_SDY, $__LA_LSTSQ_QR, $__LA_LSTSQ_SDR, $__LA_LSTSQ_REDUNDANCY, $__LA_LSTSQ_COND, $__LA_LSTSQ_RANK
 ; $__LA_LSTSQ_R		      - Residuals r:  r = y - y_d
-; $__LA_LSTSQ_R2Sum       - square sum of [weighted] residuals: r2sum = rᵀ · W · v
+; $__LA_LSTSQ_R2Sum       - square sum of [weighted] residuals: r2sum = rᵀ · W · r
 ; $__LA_LSTSQ_S0          - a posteriori standard deviation factor
 ; $__LA_LSTSQ_QX          - cofactor matrix of parameters
 ; $__LA_LSTSQ_SDX         - standard deviations of parameters: sdₓ = sqrt(s₀² · diag(Qₓ))
@@ -1211,9 +1211,9 @@ EndFunc
 ; Related .......: _blas_toArray()
 ; Link ..........:
 ; Example .......: Yes
-;                  Global $mA = _la_fromArray('[[1.23432,26346463.6512512, 3.1],[4.6161, 5.7436, 6.7246234],[7.6131, 8.872, 9.12]]')
+;                  Global $mA = _la_fromArray('[[1.23432, -26346463.6512512, 3.1],[4.6161, 5.7436, 6.7246234],[7.6131, 8.872, -9.12]]')
 ;                  ConsoleWrite(@CRLF & _la_toString($mA) & @CRLF & @CRLF)
-;                  ConsoleWrite(_la_toString($mA, @CRLF, " ", 1+2+4, ",", 5, "|", "|") & @CRLF & @CRLF)
+;                  ConsoleWrite(_la_toString($mA, @CRLF, " ", 1+2+4, ",", 5, "| ", " |") & @CRLF & @CRLF)
 ; ===============================================================================================================================
 Func _la_toString(Const ByRef $mMatrix, $cRowSep = @CRLF, $cColSep = @TAB, $dFlags = 0, $cDecimalSep = Default, $dPrecision = Default, $sRowStart = "", $sRowEnd = "", $cFormatType = "g")
 	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
@@ -2085,7 +2085,7 @@ EndFunc
 ;                  Global $fNorm = _la_norm(_la_fromArray("[3,2,7,3,4,5]"))
 ;                  MsgBox(0,"Norm", $fNorm)
 ; ===============================================================================================================================
-Func _la_norm(ByRef $mMatrix, $iStart = 0, $iStep = 1, $iN = Default)
+Func _la_norm($mMatrix, $iStart = 0, $iStep = 1, $iN = Default)
 	; direct AutoIt-type input
 	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
 
@@ -2152,6 +2152,8 @@ EndFunc
 ;                              "I": infinity norm (max row sum)
 ;                              "F": Frobenius norm (square root of sum of squares)
 ;                              "M": largest absolute value
+;                              "mean": mean of the absolute values
+;                              "RMS": Root Mean Square
 ;                  iStart   - [Int] (Default: 0)
 ;                           ↳ start index
 ;                  iStep    - [Int] (Default: 1)
@@ -2165,13 +2167,15 @@ EndFunc
 ;                           |1X: error X during _blas_NRM2() (@extended: @extended from _blas_NRM2())
 ;                           |2X: error X during _lp_lange() (@extended: @extended from _lp_lange())
 ;                           |3X: error X during _lp_rscl() (@extended: @extended from _lp_rscl())
+;                           |4X: error X during _blas_asum() (@extended: @extended from _blas_asum())
+;                           |5X: error X during _lp_lassq() (@extended: @extended from _lp_lassq())
 ; Author ........: AspirinJunkie
 ; Modified.......: 2025-01-06
 ; Remarks .......:
-; Related .......: _blas_NRM2, _lp_lange, _lp_rscl
+; Related .......: _blas_NRM2, _lp_lange, _lp_rscl, _blas_asum, _lp_lassq
 ; Link ..........:
 ; Example .......: Yes
-;                  Global $mNormalized = _la_normalize("[0.01,0.02,0.03,0.04,0.05,0.06]", False, "M")
+;                  Global $mNormalized = _la_normalize("[0.01,0.02,0.03,0.04,0.05,0.06]", False, "E")
 ;                  _la_display($mNormalized)
 ; ===============================================================================================================================
 Func _la_normalize(ByRef $mMatrix, $bInPlace = False, $cNorm = "E", $iStart = 0, $iStep = 1, $iN = Default)
@@ -2193,13 +2197,22 @@ Func _la_normalize(ByRef $mMatrix, $bInPlace = False, $cNorm = "E", $iStart = 0,
 
 	; calculate the norm of the vector/matrix
 	Local $fNorm
-	If $cNorm = "E" Then
-		$fNorm = _blas_NRM2($mMatrix, $iStart, $iStep, $iN)
-		If @error Then Return SetError(@error + 10, @extended, Null)
-	Else
-		$fNorm = _lp_lange($mMatrix.ptr + $dSize * $iStart, $cNorm, $iN, 1, $iN, $sDataType)
-		If @error Then Return SetError(@error + 20, @extended, Null)
-	EndIf
+	Switch $cNorm
+		Case "E"
+			$fNorm = _blas_NRM2($mMatrix, $iStart, $iStep, $iN)
+			If @error Then Return SetError(@error + 10, @extended, Null)
+		Case "mean"
+			$fNorm = _blas_asum($mMatrix, $iStart, $iStep, $iN)
+			If @error Then Return SetError(@error + 40, @extended, Null)
+			$fNorm /= $iN
+		Case "RMS"
+			$fNorm = _lp_lassq($mMatrix, $iStart, $iStep, $iN)
+			If @error Then Return SetError(@error + 50, @extended, Null)
+			$fNorm = Sqrt($fNorm / $iN)
+		Case Else
+			$fNorm = _lp_lange($mMatrix.ptr + $dSize * $iStart, $cNorm, $iN, 1, $iN, $sDataType)^2
+			If @error Then Return SetError(@error + 20, @extended, Null)
+	EndSwitch
 
 	If $fNorm = 0.0 Then Return SetError(2, 0, Null)
 
