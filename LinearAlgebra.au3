@@ -2332,11 +2332,13 @@ Func _la_sqrtElements($mMatrix, $bInPlace = False, $iM = Default, $iN = Default,
 
 	; set parameters to standard values if not defined
 	If IsKeyword($iM)   = 1 Then $iM   = $mMatrix.rows
-	If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.cols
+	If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.cols = 0 ? 1 : $mMatrix.cols
 	If IsKeyword($iLDA) = 1 Then $iLDA = $iM
 
 	Local Const $sDataType = $mMatrix.datatype, _
 				$cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	;~ ConsoleWrite(@CRLF & $iM & @CRLF & $iN & @CRLF & $iLDA & @CRLF & $iINCX & @CRLF & $sDataType & @CRLF)
 
 	; run native code instead of slow AutoIt-Code to calculate the square root of the elements
 	DllCallAddress("NONE", $__g_tBIN_NATIVE_MODULE_Ptr + $__g_mBIN_NATIVE_MODULE_Offsets[$cPrefix & "sqrt"], "PTR", $mMatrix.ptr, "INT", $iM, "INT", $iN, "INT", $iLDA, "INT", $iINCX)
@@ -2382,7 +2384,7 @@ Func _la_squareElements(ByRef $mMatrix, $bInPlace = False, $iM = Default, $iN = 
 
 	; set parameters to standard values if not defined
 	If IsKeyword($iM)   = 1 Then $iM   = $mMatrix.rows
-	If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.cols
+	If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.cols = 0 ? 1 : $mMatrix.cols
 	If IsKeyword($iLDA) = 1 Then $iLDA = $iM
 
 	Local Const $sDataType = $mMatrix.datatype, _
@@ -2435,7 +2437,7 @@ Func _la_invElements(ByRef $mMatrix, $bInPlace = False, $fAlpha = 1.0, $iM = Def
 
 	; set parameters to standard values if not defined
 	If IsKeyword($iM)   = 1 Then $iM   = $mMatrix.rows
-	If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.cols
+	If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.cols = 0 ? 1 : $mMatrix.cols
 	If IsKeyword($iLDA) = 1 Then $iLDA = $iM
 	If IsKeyword($fEPS) = 1 Then $fEPS = $sDataType = "FLOAT" ? $f_LA_FLT_EPS : $f_LA_DBL_EPS
 
@@ -3706,7 +3708,6 @@ Func _la_lstsq($mA, $mB, $mP = Default, $sAlgorithm = "QR", $iFlagsResults = 0, 
 		_blas_scal($mStdDevs.ptr, $mRet.s0^2 , 0, 1, $iN, $sDataType)
 		; sqrt() for every element to determine the standard deviation
 		_la_sqrtElements($mStdDevs, True)
-
 		$mRet.sdX = $mStdDevs
 	EndIf
 
