@@ -2298,15 +2298,15 @@ EndFunc
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_sqrtElements()
 ; Description ...: calculates the square root of each element of a matrix/vector
-; Syntax ........: _la_sqrtElements($mMatrix, [$bInPlace = False])
+; Syntax ........: _la_sqrtElements($mMatrix, [$bInPlace = False [, $iM = Default [, $iN = Default [, $iLDA = $iM [, $iINCX = 1]]]]]])
 ; Parameters ....: mMatrix  - [Map] matrix/vector as a map/array/definition string
 ;                  bInPlace - [Bool] (Default: False)
 ;                           ↳ True: mMatrix gets overwritten
 ;                             False: mMatrix remains untouched
-;                  iM       - [Int] number of rows of the target/sub-matrix in mMatrix (=iLDA if you want the full matrix)
-;                  iN       - [Int] number of columns of the target/sub-matrix in mMatrix
-;                  iLDA     - [Int] column header spacing = number of rows in mMatrix
-;                  iINCX    - [Int] iteration step between the elements
+;                  iM       - [Int] (Default: $mMatrix.rows) number of rows of the target/sub-matrix in mMatrix (=iLDA if you want the full matrix)
+;                  iN       - [Int] (Default: $mMatrix.cols) number of columns of the target/sub-matrix in mMatrix
+;                  iLDA     - [Int] (Default: iM) column header spacing = number of rows in mMatrix
+;                  iINCX    - [Int] (Default: 1) iteration step between the elements
 ; Return value ..: Success: bInplace ? True : matrix/vector with square rooted values
 ;                  Failure: Null and set @error to:
 ;                           | 1: invalid value for mMatrix
@@ -2347,27 +2347,30 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_squareElements()
-; Description ...: calculates the square of each element of a matrix/vector
-; Syntax ........: _la_squareElements($mMatrix, [$bInPlace = False])
+; Description ...: calculates the square of each element or specific elements of a matrix/vector
+; Syntax ........: _la_squareElements($mMatrix, [$bInPlace = False [, $iM = Default [, $iN = Default [, $iLDA = $iM [, $iINCX = 1]]]]]])
 ; Parameters ....: mMatrix  - [Map] matrix/vector as a map/array/definition string
 ;                  bInPlace - [Bool] (Default: False)
 ;                           ↳ True: mMatrix gets overwritten
 ;                             False: mMatrix remains untouched
-; Return value ..: Success: bInplace ? True : matrix/vector with square rooted values
+;                  iM       - [Int] (Default: $mMatrix.rows) number of rows of the target/sub-matrix in mMatrix (=iLDA if you want the full matrix)
+;                  iN       - [Int] (Default: $mMatrix.cols) number of columns of the target/sub-matrix in mMatrix
+;                  iLDA     - [Int] (Default: iM) column header spacing = number of rows in mMatrix
+;                  iINCX    - [Int] (Default: 1) iteration step between the elements
+; Return value ..: Success: bInplace ? True : matrix/vector with squared values
 ;                  Failure: Null and set @error to:
 ;                           | 1: invalid value for mMatrix
-;                           |1X: error X during _blas_sbmv() (@extended: @extended from _blas_sbmv())
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-05
 ; Remarks .......:
-; Related .......: _blas_sbmv()
+; Related .......: 
 ; Link ..........:
 ; Example .......: Yes
-;                  Global $mA = _la_fromArray("[[1,-2,3],[4,5,6],[7,8,9]]")
-;                  Global $mS = _la_squareElements($mA)
-;                  _la_display($mS)
+                  Global $mA = _la_fromArray("[[1,-2,3],[4,5,6],[7,8,9]]")
+                  Global $mS = _la_squareElements($mA)
+                  _la_display($mS)
 ; ===============================================================================================================================
-Func _la_squareElements(ByRef $mMatrix, $bInPlace = False)
+Func _la_squareElements(ByRef $mMatrix, $bInPlace = False, $iM = Default, $iN = Default, $iLDA = $iM, $iINCX = 1)
 	; direct AutoIt-type input
 	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
 
@@ -2377,26 +2380,18 @@ Func _la_squareElements(ByRef $mMatrix, $bInPlace = False)
 	; duplicate input matrix to prevent overwrite if option choosed
 	If Not $bInPlace And IsMap($mMatrix) Then $mMatrix = _la_duplicate($mMatrix)
 
-	Local $iN = $mMatrix.size
+	; set parameters to standard values if not defined
+	If IsKeyword($iM)   = 1 Then $iM   = $mMatrix.rows
+	If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.cols
+	If IsKeyword($iLDA) = 1 Then $iLDA = $iM
 
-	; empty (0-filled) vector Y
-	Local $tTmp = DllStructCreate(StringFormat("%s[%d]", $mMatrix.datatype, $iN)), $pTmp = DllStructGetPtr($tTmp)
+	Local Const $sDataType = $mMatrix.datatype, _
+				$cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
 
-	; sbmv to treat the vector simply as diagonal matrix to perform a efficient element wise multiplication
-	_blas_sbmv($mMatrix.ptr, $mMatrix.ptr, $pTmp, 1, 1, 0, "L", $iN, 1, 1, 1)
-	If @error Then Return SetError(@error + 10, @extended, $bInPlace ? False : Null)
+	; run native code instead of slow AutoIt-Code to calculate the squared value of the elements
+	DllCallAddress("NONE", $__g_tBIN_NATIVE_MODULE_Ptr + $__g_mBIN_NATIVE_MODULE_Offsets[$cPrefix & "square"], "PTR", $mMatrix.ptr, "INT", $iM, "INT", $iN, "INT", $iLDA, "INT", $iINCX)
 
-	If $bInPlace Then
-		$mMatrix.struct = $tTmp
-		$mMatrix.ptr = $pTmp
-		Return True
-	Else
-		Local $mRet = $mMatrix.storageType = 0 ? _blas_createVector($iN, $mMatrix.datatype) : _blas_createMatrix($mMatrix.rows, $mMatrix.cols, $mMatrix.datatype)
-		$mRet.struct = $tTmp
-		$mRet.ptr = $pTmp
-		Return $mRet
-	EndIf
-
+	Return SetExtended($iN, $bInPlace ? True : $mMatrix)
 EndFunc
 
 ; #FUNCTION# ====================================================================================================================
