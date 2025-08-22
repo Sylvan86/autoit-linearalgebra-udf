@@ -2253,7 +2253,7 @@ EndFunc
 ;                           | 5: error inside second call of gels (@extended: INFO-value from gels)
 ; Author ........: AspirinJunkie
 ; Modified.......: 2024-09-02
-; Remarks .......:
+; Remarks .......: faster and more stable than _lp_gels for problems with much more rows than columns in $mA
 ; Related .......:
 ; Link ..........: https://www.netlib.org/lapack/explore-html/dd/dc8/group__getsls_ga2d8769d20f80cde1c8e8ceeab7a1cb7d.html#ga2d8769d20f80cde1c8e8ceeab7a1cb7d
 ; Example .......: Yes
@@ -3031,7 +3031,7 @@ Func _lp_ggglm($mA, $mB, $mD, $iN = Default, $iM = Default, $iP =Default, $iLDA 
 	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
 
 	; reserve memory for the result
-	Local $mX = _blas_createVector($iM, $sDataType), $pX = $mX.ptr, _
+	Local $mX = _blas_createVector($iM = 0 ? 1 : $iM, $sDataType), $pX = $mX.ptr, _
 	      $mY = _blas_createVector($iP, $sDataType), $pY = $mY.ptr
 
 	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "ggglm", _
