@@ -6,6 +6,7 @@
 #include-once
 #include <Math.au3>
 #include "LAPACK.au3"
+#include "../JSON/JSON.au3"
 
 ; #INDEX# =======================================================================================================================
 ; Title .........: LinearAlgebra
@@ -769,7 +770,7 @@ EndFunc
 ;                  _la_display($mTransposed, "transposed")
 ;                  ConsoleWrite(@error & @TAB & @extended & @CRLF)
 ; ===============================================================================================================================
-Func _la_transpose($mMatrix, $fAlpha = 1, $bInPlace = False)
+Func _la_transpose(ByRef $mMatrix, $fAlpha = 1, $bInPlace = False)
 	; direct AutoIt-type input
 	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
 
@@ -1042,6 +1043,32 @@ Func _la_VectorToDiag(ByRef $mVector, $bInPlace = False)
 	Return $bInPlace ? True : $mDiagMatrix
 EndFunc   ;==>_la_VectorToDiag
 
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _la_clear()
+; Description ...: sets all elements of a vector/matrix to 0
+; Syntax ........: _la_clear($mVector)
+; Parameters ....: mVector  - [Map] vector as a map/array/definition string
+; Return value ..: Success: True
+;                  Failure: False and set @error to:
+;                           | 1: invalid value for mVector
+;                           | 1X: error X during RtlZeroMemory (@extended: @extended from DllCall())
+; Author ........: AspirinJunkie
+; Modified.......: 2025-06-30
+; Remarks .......:
+; Related .......: 
+; Link ..........:
+; Example .......: No
+; ===============================================================================================================================
+Func _la_clear(ByRef $mVector)
+	; validation of the input parameters
+	If Not MapExists($mVector, "ptr") Then Return SetError(1, 0, False) ; valid AutoIt-BLAS/LAPACK-Map?
+
+	DllCall("kernel32.dll", "none", "RtlZeroMemory", "ptr", $mVector.ptr, "ulong", $mVector.size * ($mVector.datatype = "FLOAT" ? $iBLAS_SIZE_FLOAT : $iBLAS_SIZE_DOUBLE))
+	If @error Then Return SetError(@error + 10, @extended, False)
+
+	Return True
+EndFunc   ;==>_la_clear
+
 #EndRegion
 
 #Region data output
@@ -1070,12 +1097,15 @@ EndFunc   ;==>_la_VectorToDiag
 ;                  Global $mA = _la_fromArray('[[1,2,3],[4,5,6],[7,8,9]]')
 ;                  _la_display($mA, "from AutoIt Array")
 ; ===============================================================================================================================
-Func _la_display($mData, $sTitle = "", $iDecimalPlaces = 0, $iFlags = 64)
+Func _la_display($mData, $sTitle = "", $iDecimalPlaces = 0, $bToClip = False, $iFlags = 64, $cDecimalSep = ",")
 	; direct AutoIt-type input
 	If IsArray($mData) Or IsString($mData) Then $mData = _blas_fromArray($mData)
 
 	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
 	If Not MapExists($mData, "ptr") Then Return SetError(1, 0, False)
+
+	; put the values to the clipboard if wished
+	If $bToClip Then ClipPut(_la_toString($mData, @CRLF, @TAB, 0, $cDecimalSep))
 
 	Local $mRet = _blas_display($mData, $sTitle, $iDecimalPlaces, $iFlags)
 	Return SetError(@error + 10, @extended, $mRet)
@@ -1251,7 +1281,7 @@ Func _la_toString(Const ByRef $mMatrix, $cRowSep = @CRLF, $cColSep = @TAB, $dFla
 				EndIf
 
 				If StringLen($aParts[0]) > $dMaxReal Then $dMaxReal = StringLen($aParts[0])
-				If StringLen($aParts[1]) > $dMaxDec Then $dMaxDec = StringLen($aParts[1])
+				If UBound($aParts) > 1 And StringLen($aParts[1]) > $dMaxDec Then $dMaxDec = StringLen($aParts[1])
 				If BitAND($dFlags, 4) And $dMaxDec > $dPrecision Then $dMaxDec = $dPrecision
 			Next
 
@@ -1274,7 +1304,10 @@ Func _la_toString(Const ByRef $mMatrix, $cRowSep = @CRLF, $cColSep = @TAB, $dFla
 					$sValue = StringFormat("% " & $aN[0][3] & "s", StringFormat($sFormatString, $aData[$i]))
 				EndIf
 
-				If BitAND($dFlags, 2) Then $sValue = StringRegExpReplace($sValue, '(0(?=0*$))', ' ')
+				If BitAND($dFlags, 2) Then 
+					If StringInStr($sValue, '.', 1) Then $sValue = StringRegExpReplace($sValue, '(0(?=0*$))', ' ')
+					$sValue = StringRegExpReplace($sValue, '(\.)(\h*)$', ' $2') ; remove decimal point if number is integer
+				EndIf
 			Else
 				$sValue = StringFormat($sFormatString, $aData[$i])
 			EndIf
@@ -1300,7 +1333,10 @@ Func _la_toString(Const ByRef $mMatrix, $cRowSep = @CRLF, $cColSep = @TAB, $dFla
 					Else
 						$sValue = StringFormat("% " & $aN[$j][3] & "s", StringFormat($sFormatString, $aData[$i][$j]))
 					EndIf
-					If BitAND($dFlags, 2) Then $sValue = StringRegExpReplace($sValue, '(0(?=0*$))', ' ')
+					If BitAND($dFlags, 2) Then 
+						If StringInStr($sValue, '.', 1) Then $sValue = StringRegExpReplace($sValue, '(0(?=0*$))', ' ')
+						$sValue = StringRegExpReplace($sValue, '(\.)(\h*)$', ' $2') ; remove decimal point if number is integer
+					EndIf
 					If IsKeyword($cDecimalSep) <> 1 Then $sValue = StringReplace($sValue, '.', $cDecimalSep, 1, 1)
 					$sRet &= $sValue
 				Else
@@ -5458,6 +5494,8 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 		; derive model predicted observation values y0
 		__la_adj_getYfromModel($mObservations, $mParams, $tY0)
 
+
+
 		; calculate residual vector r = y - y0  --> y0
 		_blas_scal($mY0.ptr, -1, 0, 1, $iM)
 		_blas_axpy($mY.ptr, $mY0.ptr, 1, 0, 0, 1, 1, $iM)
@@ -5514,6 +5552,7 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 		; derive model predicted observation values y0
 		__la_adj_getYfromModel($mObservations, $mParams1, $tY0)
 
+		
 		; calculate residual vector r = y - y0  --> y0
 		_blas_scal($mY0.ptr, -1, 0, 1, $iM)
 		_blas_axpy($mY.ptr, $mY0.ptr, 1, 0, 0, 1, 1, $iM)
@@ -5531,6 +5570,8 @@ Func __la_adj_LevenbergMarquardt($mObservations, $mParams, $fLambda = 1, $sLstSq
 		EndIf
 
 		$fNormR = _la_norm($mY0)
+
+		ConsoleWrite($fLambda & @CRLF & $fNormR & @TAB & $fNormR_old & @CRLF & @CRLF)
 
 		If $fNormR < $fNormR_old Then
 			$mParams = $mParams1
