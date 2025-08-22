@@ -1475,12 +1475,12 @@ Func _blas_amax($mMatrix, $iStart = 0, $iInc = 1, $iN = Default, $sDataType = "D
 	Local $fRet
 	Select
 		Case IsMap($mMatrix)
-			$fRet = DllStructGetData($mMatrix.struct, 1, $aDLL[0] + $iStart)
+			$fRet = DllStructGetData($mMatrix.struct, 1, ($aDLL[0]-1) * $iInc + $iStart + 1)
 		Case IsPtr($mMatrix)
-			Local $tStruct = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iStart + $aDLL[0]), $mMatrix)
-			$fRet = DllStructGetData($tStruct, 1, $aDLL[0] + $iStart)
+			Local $tStruct = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iStart + 1 + ($aDLL[0]-1) * $iInc), $mMatrix)
+			$fRet = DllStructGetData($tStruct, 1, ($aDLL[0]-1) * $iInc + $iStart + 1)
 		Case IsDllStruct($mMatrix)
-			$fRet = DllStructGetData($mMatrix, 1, $aDLL[0] + $iStart)
+			$fRet = DllStructGetData($mMatrix, 1, ($aDLL[0]-1) * $iInc + $iStart + 1)
 	EndSelect
 
 	Return SetExtended($aDLL[0], $fRet)
@@ -3158,7 +3158,7 @@ EndFunc
 ;                  __blas_fillWithScalar($mMatrix, 7.3, 0, $mMatrix.rows + 1)
 ;                  _blas_display($mMatrix)
 ; ===============================================================================================================================
-Func __blas_fillWithScalar(ByRef $mMatrix, $fScalar = 1.0, $iStart = 0, $iInc = 1, $iN = Default, $sDataType = "DOUBLE")
+Func __blas_fillWithScalar($mMatrix, $fScalar = 1.0, $iStart = 0, $iInc = 1, $iN = Default, $sDataType = "DOUBLE")
 	Local $pM ; pointer to the data in memory
 
 	; Set parameters depending on the input type
