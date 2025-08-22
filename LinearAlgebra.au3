@@ -2361,14 +2361,14 @@ EndFunc
 ;                  Failure: Null and set @error to:
 ;                           | 1: invalid value for mMatrix
 ; Author ........: AspirinJunkie
-; Modified.......: 2024-09-05
+; Modified.......: 2025-08-22
 ; Remarks .......:
 ; Related .......: 
 ; Link ..........:
 ; Example .......: Yes
-                  Global $mA = _la_fromArray("[[1,-2,3],[4,5,6],[7,8,9]]")
-                  Global $mS = _la_squareElements($mA)
-                  _la_display($mS)
+;                  Global $mA = _la_fromArray("[[1,-2,3],[4,5,6],[7,8,9]]")
+;                  Global $mS = _la_squareElements($mA)
+;                  _la_display($mS)
 ; ===============================================================================================================================
 Func _la_squareElements(ByRef $mMatrix, $bInPlace = False, $iM = Default, $iN = Default, $iLDA = $iM, $iINCX = 1)
 	; direct AutoIt-type input
@@ -2396,28 +2396,31 @@ EndFunc
 
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _la_invElements()
-; Description ...: forms the reciprocal (1/x) for each element of the matrix/vector
-; Syntax ........: _la_invElements($mMatrix, [$bInPlace = False])
+; Description ...: performs the calculation (alpha/x) for each element or specific subelements of the matrix/vector
+; Syntax ........: _la_invElements($mMatrix, [$bInPlace = False [, $iM = Default [, $iN = Default [, $iLDA = $iM [, $iINCX = 1]]]]]])
 ; Parameters ....: mMatrix  - [Map] matrix/vector as a map/array/definition string
 ;                  bInPlace - [Bool] (Default: False)
 ;                           ↳ True: mMatrix gets overwritten
 ;                             False: mMatrix remains untouched
+;                  fAlpha   - [Float/Double] (Default: 1.0) value for alpha to calculate alpha/x
+;                  iM       - [Int] (Default: $mMatrix.rows) number of rows of the target/sub-matrix in mMatrix (=iLDA if you want the full matrix)
+;                  iN       - [Int] (Default: $mMatrix.cols) number of columns of the target/sub-matrix in mMatrix
+;                  iLDA     - [Int] (Default: iM) column header spacing = number of rows in mMatrix
+;                  iINCX    - [Int] (Default: 1) iteration step between the elements
+;                  fEPS     - [Float/Double] machine precision for the datatype in mMatrix 
 ; Return value ..: Success: bInplace ? True : [Map] matrix/vector with inverted values
 ;                  Failure: bInplace ? False : Null and set @error to:
 ;                           | 1: invalid value for mMatrix
-;                           |1X: error X during _blas_tbsv() (@extended: @extended from _blas_tbsv())
 ; Author ........: AspirinJunkie
-; Modified.......: 2024-10-07
-; Remarks .......: idea: solve A·x = b with b = identity vector and A = diagonal matrix with elements from $mMatrix as diagonal
-;                  use tbsv because a diag-matrix is saved as simple diag vector in band matrix form with k=0
-;                  it`s possible to use _lp_gbsv() instead but gbsv would stop if element = 0 (here it becomes inf instead)
-; Related .......: _blas_tbsv()
+; Modified.......: 2025-22-08
+; Remarks .......: 
+; Related .......: 
 ; Link ..........:
 ; Example .......: Yes
-;                  Global $mInv = _la_invElements("[[1,1e-308,3],[4,0,6]]")
+;                  Global $mInv = _la_invElements("[[1,1e-308,3],[4,0,6]]", False, 5)
 ;                  _la_display($mInv)
 ; ===============================================================================================================================
-Func _la_invElements(ByRef $mMatrix, $bInPlace = False)
+Func _la_invElements(ByRef $mMatrix, $bInPlace = False, $fAlpha = 1.0, $iM = Default, $iN = Default, $iLDA = $iM, $iINCX = 1, $fEps = Default)
 	; direct AutoIt-type input
 	If IsArray($mMatrix) Or IsString($mMatrix) Then $mMatrix = _blas_fromArray($mMatrix)
 
@@ -2427,28 +2430,19 @@ Func _la_invElements(ByRef $mMatrix, $bInPlace = False)
 	; duplicate input matrix to prevent overwrite if option choosed
 	If Not $bInPlace And IsMap($mMatrix) Then $mMatrix = _la_duplicate($mMatrix)
 
-	Local $iN = $mMatrix.size
+	Local Const $sDataType = $mMatrix.datatype, _
+                $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
 
-	; create vector filled with ones with size as $mMatrix
-	Local $mOnes = _la_createIdentity($iN, 0, $mMatrix.datatype)
+	; set parameters to standard values if not defined
+	If IsKeyword($iM)   = 1 Then $iM   = $mMatrix.rows
+	If IsKeyword($iN)   = 1 Then $iN   = $mMatrix.cols
+	If IsKeyword($iLDA) = 1 Then $iLDA = $iM
+	If IsKeyword($fEPS) = 1 Then $fEPS = $sDataType = "FLOAT" ? $f_LA_FLT_EPS : $f_LA_DBL_EPS
 
-	; solve diag(A) · X = I
-	_blas_tbsv($mMatrix.ptr, $mOnes.ptr, 0, "U", "N", "N", $iN, 1, 1, $mMatrix.datatype)
-	If @error Then Return SetError(@error + 10, @extended, $bInPlace ? False : Null)
+	; run native code instead of slow AutoIt-Code to calculate the squared value of the elements
+	DllCallAddress("NONE", $__g_tBIN_NATIVE_MODULE_Ptr + $__g_mBIN_NATIVE_MODULE_Offsets[$cPrefix & "inv"], "PTR", $mMatrix.ptr, $sDataType, $fAlpha, "INT", $iM, "INT", $iN, "INT", $iLDA, "INT", $iINCX, $sDataType, $fEps)
 
-	If $bInPlace Then
-		$mMatrix.struct = $mOnes.struct
-		$mMatrix.ptr    = DllStructGetPtr($mMatrix.struct)
-		Return True
-	Else
-		$mOnes.elements    = $mMatrix.elements
-		$mOnes.rows        = $mMatrix.rows
-		$mOnes.cols        = $mMatrix.cols
-		$mOnes.storageType = $mMatrix.storageType
-		$mOnes.kl          = $mMatrix.kl
-		$mOnes.ku          = $mMatrix.ku
-		Return $mOnes
-	EndIf
+	Return SetExtended($iN, $bInPlace ? True : $mMatrix)
 EndFunc
 
 #EndRegion
