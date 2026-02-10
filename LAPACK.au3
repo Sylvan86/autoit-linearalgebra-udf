@@ -35,6 +35,7 @@
 ;
 ; ---- eigen values ----
 ; _lp_geev   - computes for an N-by-N real nonsymmetric matrix A, the eigenvalues and the left and/or right eigenvectors.
+; _lp_ggev   - computes the generalized eigenvalues and the left and/or right generalized eigenvectors for a pair of N-by-N real matrices (A,B).
 ; _lp_syev   - computes all eigenvalues and eigenvectors of a real symmetric matrix A.
 ;
 ; ---- solve linear systems ----
@@ -1126,6 +1127,160 @@ Func _lp_geev($mA, $cJOBVL = "N", $cJOBVR = "N", $iN = Default, $iLDA = $iN, $sD
 	Local $mRet[]
 	$mRet.R = _blas_fromStruct($tWR, $iN, 0, $sDataType)
 	$mRet.I = _blas_fromStruct($tWI, $iN, 0, $sDataType)
+
+	If $cJOBVL = "V" Then $mRet.VL = _blas_fromStruct($tVL, $iLDVL, $iN, $sDataType)
+	If $cJOBVR = "V" Then $mRet.VR = _blas_fromStruct($tVR, $iLDVR, $iN, $sDataType)
+
+	Return SetExtended($iLWork, $mRet)
+EndFunc
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_ggev()
+; Description ...: computes the generalized eigenvalues and the left and/or right generalized eigenvectors for a pair of N-by-N real matrices (A,B).
+;                  A generalized eigenvalue is given as lambda = (ALPHAR + i*ALPHAI) / BETA.
+; Syntax ........: _lp_ggev($mA, $mB, [$cJOBVL = "N", [$cJOBVR = "N", [$iN = Default, [$iLDA = $iN, [$iLDB = $iN, [$sDataType = "DOUBLE"]]]]]]])
+; Parameters ....: mA        - [Map] matrix A as a map, DllStruct or pointer (will be overwritten)
+;                  mB        - [Map] matrix B as a map, DllStruct or pointer (will be overwritten)
+;                  cJOBVL    - [Char] (Default: "N")
+;                            -> "N": left generalized eigenvectors are not computed
+;                               "V": left generalized eigenvectors are computed
+;                  cJOBVR    - [Char] (Default: "N")
+;                            -> "N": right generalized eigenvectors are not computed
+;                               "V": right generalized eigenvectors are computed
+;                  iN        - [Int] (Default: Default)
+;                            -> order of matrices A and B (rows)
+;                  iLDA      - [Int] (Default: $iN)
+;                            -> leading dimension of the matrix A (rows)
+;                  iLDB      - [Int] (Default: $iN)
+;                            -> leading dimension of the matrix B (rows)
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            -> data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: [Map] {"ALPHAR": real part, "ALPHAI": imaginary part, "BETA": beta part, "VL": left eigenvectors, "VR": right eigenvectors} {@extended = size of WORK}
+;                  Failure: Null and set @error to:
+;                           | 1: error during first DllCall of ggev (@extended: @error from DllCall)
+;                           | 2: error inside first call of ggev (@extended: INFO-value from ggev)
+;                           | 3: determined size of WORK is not valid (@extended: determined LWORK)
+;                           | 4: error during second DllCall of ggev (@extended: @error from DllCall)
+;                           | 5: error inside second call of ggev (@extended: INFO-value from ggev)
+; Author ........: AspirinJunkie
+; Modified.......: 2026-02-10
+; Remarks .......: for complex conjugate pairs, DGGEV stores the eigenvectors in real form (see LAPACK documentation).
+; Related .......:
+; Link ..........: https://www.netlib.org/lapack/double/dggev.f
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[1,2],[3,4]]")
+;                  Global $mB = _blas_fromArray("[[2,0],[0,1]]")
+;                  Global $mEig = _lp_ggev($mA, $mB, "N", "V")
+;                  ; generalized eigenvalues lambda = (ALPHAR + i*ALPHAI) / BETA
+;                  ; NOTE: ALPHA and BETA are not unique (they may be scaled). Only the ratio is the eigenvalue.
+;                  Global $aAR = _blas_toArray($mEig.ALPHAR)
+;                  Global $aAI = _blas_toArray($mEig.ALPHAI)
+;                  Global $aBT = _blas_toArray($mEig.BETA)
+;                  For $k = 0 To UBound($aAR) - 1
+;                      If $aBT[$k] = 0 Then
+;                          ConsoleWrite(StringFormat("lambda[%d] = INF (beta=0)%s", $k + 1, @CRLF))
+;                      Else
+;                          ConsoleWrite(StringFormat("lambda[%d] = %g + i*%g%s", $k + 1, $aAR[$k] / $aBT[$k], $aAI[$k] / $aBT[$k], @CRLF))
+;                      EndIf
+;                  Next
+;                  _blas_display($mEig.VR, "right generalized eigenvectors")
+; ===============================================================================================================================
+Func _lp_ggev($mA, $mB, $cJOBVL = "N", $cJOBVR = "N", $iN = Default, $iLDA = $iN, $iLDB = $iN, $sDataType = "DOUBLE")
+	Local $pA, $pB ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iN) = 1 Then $iN = $mA.rows
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+	Select
+		Case IsMap($mB)
+			If IsKeyword($iN) = 1 Then $iN = $mB.rows
+			$pB = $mB.ptr
+		Case IsPtr($mB)
+			$pB = $mB
+		Case IsDllStruct($mB)
+			$pB = DllStructGetPtr($mB)
+	EndSelect
+
+	If IsKeyword($iLDA) = 1 Then $iLDA = $iN
+	If IsKeyword($iLDB) = 1 Then $iLDB = $iN
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	; set char buffers and input healing:
+	DllStructSetData($tBLASCHAR1, 1, $cJOBVL <> "N" ? "V" : $cJOBVL)
+	DllStructSetData($tBLASCHAR2, 1, $cJOBVR <> "N" ? "V" : $cJOBVR)
+
+	; result buffers
+	Local $iLDVL = $cJOBVL = "N" ? 1 : $iN ; "V" as alternative
+	Local $iLDVR = $cJOBVR = "N" ? 1 : $iN ; "V" as alternative
+	Local $tAlphaR = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iN))
+	Local $tAlphaI = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iN))
+	Local $tBeta   = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iN))
+	Local $tVL = $cJOBVL = "N" ? 0 : DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLDVL * $iN))
+	Local $tVR = $cJOBVR = "N" ? 0 : DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLDVR * $iN))
+
+	; first call to determine LWORK
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "ggev", _
+		"PTR",            $pBLASCHAR1, _  ; JOBVL
+		"PTR",            $pBLASCHAR2, _  ; JOBVR
+		"INT*",           $iN, _          ; N
+		"PTR",            0, _            ; A
+		"INT*",           $iLDA, _        ; LDA
+		"PTR",            0, _            ; B
+		"INT*",           $iLDB, _        ; LDB
+		"PTR",            0, _            ; ALPHAR
+		"PTR",            0, _            ; ALPHAI
+		"PTR",            0, _            ; BETA
+		"PTR",            0, _            ; VL
+		"INT*",           $iLDVL, _       ; LDVL
+		"PTR",            0, _            ; VR
+		"INT*",           $iLDVR, _       ; LDVR
+		$sDataType & "*", 0, _            ; WORK (here 1 element because we determine the best size)
+		"INT*",           -1, _           ; LWORK
+		"INT*",           0 _ 			  ; INFO
+	)
+	If @error Then Return SetError(1, @error, Null)
+	If $aDLL[17] <> 0 Then Return SetError(2, $aDLL[17], Null)
+
+	; declare working buffers
+	Local $iLWork = $aDLL[15]
+	If $iLWork < 1 Then Return SetError(3, $iLWork, Null)
+	Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iLWork))
+
+	$aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "ggev", _
+		"PTR",  $pBLASCHAR1, _                                     ; JOBVL
+		"PTR",  $pBLASCHAR2, _                                     ; JOBVR
+		"INT*", $iN, _                                             ; N
+		"PTR",  $pA, _                                             ; the general matrix A
+		"INT*", $iLDA, _                                           ; LDA
+		"PTR",  $pB, _                                             ; the general matrix B
+		"INT*", $iLDB, _                                           ; LDB
+		"PTR",  DllStructGetPtr($tAlphaR), _                       ; ALPHAR
+		"PTR",  DllStructGetPtr($tAlphaI), _                       ; ALPHAI
+		"PTR",  DllStructGetPtr($tBeta), _                         ; BETA
+		"PTR",  $cJOBVL = "N" ? 0 : DllStructGetPtr($tVL), _       ; VL
+		"INT*", $iLDVL, _                                          ; LDVL
+		"PTR",  $cJOBVR = "N" ? 0 : DllStructGetPtr($tVR), _       ; VR
+		"INT*", $iLDVR, _                                          ; LDVR
+		"PTR",  DllStructGetPtr($tWork), _                         ; WORK
+		"INT*", $iLWork, _                                         ; LWORK
+		"INT*", 0 _ 			                                   ; INFO
+	)
+	If @error Then Return SetError(4, @error, Null)
+	If $aDLL[17] <> 0 Then Return SetError(5, $aDLL[17], Null)
+
+	Local $mRet[]
+	$mRet.ALPHAR = _blas_fromStruct($tAlphaR, $iN, 0, $sDataType)
+	$mRet.ALPHAI = _blas_fromStruct($tAlphaI, $iN, 0, $sDataType)
+	$mRet.BETA   = _blas_fromStruct($tBeta,   $iN, 0, $sDataType)
 
 	If $cJOBVL = "V" Then $mRet.VL = _blas_fromStruct($tVL, $iLDVL, $iN, $sDataType)
 	If $cJOBVR = "V" Then $mRet.VR = _blas_fromStruct($tVR, $iLDVR, $iN, $sDataType)
