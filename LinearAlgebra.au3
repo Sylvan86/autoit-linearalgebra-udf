@@ -6,7 +6,6 @@
 #include-once
 #include <Math.au3>
 #include "LAPACK.au3"
-#include "../JSON/JSON.au3"
 
 ; #INDEX# =======================================================================================================================
 ; Title .........: LinearAlgebra
