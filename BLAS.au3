@@ -1610,7 +1610,7 @@ Func _blas_gemv($mMatrix, $mVecX, $mVecY, $fAlpha = 1, $fBeta = 0, $cTransposed 
 			; handle default parameter
 			If IsKeyword($iM)   = 1 Then $iM   = $cTransposed = "N" ? $mMatrix.rows : $mMatrix.cols
 			If IsKeyword($iN)   = 1 Then $iN   = $cTransposed = "N" ? $mMatrix.cols : $mMatrix.rows
-			If IsKeyword($iLDA) = 1 Then $iLDA = $cTransposed = "N" ? $iM : $iN
+			If IsKeyword($iLDA) = 1 Then $iLDA = $mMatrix.rows ; LDA is always the physical storage leading dimension
 
 			$pM = $mMatrix.ptr
 		Case IsPtr($mMatrix)
