@@ -2511,8 +2511,8 @@ EndFunc
 ;                            ↳ leading dimension of the array A (rows)
 ;                  iLDB      - [Int] (Default: $iN)
 ;                            ↳ leading dimension of the array B (max(M,N))
-;                  fRCOND    - [Float] (Default: -1)
-;                            ↳ used as threshold to determine the effective rank of A
+;                  fRCOND    - [Float] (Default: 1e-5)
+;                            ↳ used as threshold to determine the effective rank of A. Columns with norm ≤ RCOND * norm(A₁) are treated as zero.
 ;                  sDataType - [String] (Default: "DOUBLE")
 ;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
 ; Return value ..: Success: permutation vector JPVT as DllStruct (@extended = rank of matrix A)
@@ -2536,7 +2536,7 @@ EndFunc
 ;                  $mB.size     = $mA.cols
 ;                  _blas_display($mB, "rank:" & @extended)
 ; ===============================================================================================================================
-Func _lp_gelsy($mA, $mB, $iNRHS = Default, $iM = Default, $iN = Default, $iLDA = $iM, $iLDB = $iN, $fRCOND = 1e5, $sDataType = "DOUBLE")
+Func _lp_gelsy($mA, $mB, $iNRHS = Default, $iM = Default, $iN = Default, $iLDA = $iM, $iLDB = $iN, $fRCOND = 1e-5, $sDataType = "DOUBLE")
 	Local $pA, $pB ; pointer to the data in memory
 
 	; Set parameters depending on the input type
