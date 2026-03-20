@@ -20,7 +20,9 @@
 
 ; #CURRENT# =====================================================================================================================
 ; ---- Library administration ----
-; _blas_LoadBlasDll  - loads the DLL with the BLAS-compatible interface
+; _blas_LoadBlasDll  - loads the DLL with the BLAS-compatible interface (auto-search + auto-download)
+; _blas_FindBlasDll  - searches for an OpenBLAS DLL in multiple locations (@ScriptDir, parent, subdirs, PATH)
+; _blas_DownloadDll  - downloads the latest OpenBLAS release from GitHub
 ;
 ; ---- AutoIt-BLAS interface ----
 ; _blas_createVector - creates new empty vector
@@ -76,6 +78,8 @@
 ; __blas_ArrayFromString - creates an array from an array definition in AutoIt syntax, which is passed as a string
 ; __blas_fillWithScalar  - fills a matrix, a vector or parts thereof with a specific value
 ; __blas_GBSfromArray    - converts an AutoIt array into a banded matrix, which is stored in "General-Band Storage Mode"
+; __blas_checkDir           - checks a directory for an OpenBLAS DLL (arch-specific + generic fallback)
+; __blas_findFileRecursive  - recursively searches for a file by name in a directory tree
 ; ===============================================================================================================================
 
 
@@ -132,32 +136,264 @@ Global Const $tBLASCHAR4 = DllStructCreate("CHAR"), $pBLASCHAR4 = DllStructGetPt
 ; #FUNCTION# ====================================================================================================================
 ; Name ..........: _blas_LoadBlasDll()
 ; Description ...: loads the DLL with the BLAS-compatible interface
-; Syntax ........: _blas_LoadBlasDll([$sDllPath = @ScriptDir & "libopenblas.dll"])
-; Parameters ....: sDllPath - [String] (Default: @ScriptDir & "libopenblas.dll")
-;                           ↳ path to the dll file
-; Return value ..: Success: Dll handle
-;                  Failure: $sDllPath and set @error to:
-;                           | 1: file in path not exist
-;                           | 2: error during DllOpen (@extended: @error from DllOpen)
+; Syntax ........: _blas_LoadBlasDll([$sDllPath = Default])
+; Parameters ....: sDllPath - [String] (Default: automatic search + download)
+;                           ↳ explicit path to the DLL file (relative to @WorkingDir or absolute).
+;                             If Default: searches via _blas_FindBlasDll(), then tries _blas_DownloadDll().
+; Return value ..: Success: DLL handle (Integer)
+;                  Failure: -1 and set @error to:
+;                           | 1: explicit path does not exist
+;                           | 2: automatic search + download failed (@extended = download error code)
+;                           | 3: DllOpen failed (DLL found but not loadable, e.g. wrong architecture)
 ; Author ........: AspirinJunkie
-; Modified.......: 2024-08-27
+; Modified.......: 2026-03-19
 ; Remarks .......: The user can change the BLAS/LAPACK DLL used by setting the following BEFORE(!) the #include:
 ;                  Global $__g_hBLAS_DLL = DllOpen(...)
-; Related .......:
-; Link ..........:
-; Example .......: No
+;                  Search order (when $sDllPath = Default):
+;                  1. @ScriptDir  2. Parent of @ScriptDir  3. Subdirs of @ScriptDir  4. PATH  5. GitHub download
 ; ===============================================================================================================================
-Func _blas_LoadBlasDll($sDllPath = @ScriptDir & "\libopenblas.dll")
-	If Not FileExists($sDllPath) Then Return SetError(1, 0, $sDllPath)
+Func _blas_LoadBlasDll($sDllPath = Default)
+	; explicit path provided
+	If $sDllPath <> Default Then
+		If Not FileExists($sDllPath) Then Return SetError(1, 0, -1)
+	Else
+		; automatic search
+		$sDllPath = _blas_FindBlasDll()
 
-	; necessary because some dlls need to find other module in other dll-files
-	EnvSet("PATH", EnvGet("PATH") & ";" & $sDllPath)
+		; not found locally → try download
+		If $sDllPath = "" Then
+			$sDllPath = _blas_DownloadDll()
+			Local $iDlErr = @error
+			If $sDllPath = "" Then Return SetError(2, $iDlErr, -1)
+		EndIf
+	EndIf
 
+	; add DLL directory to PATH (for dependency resolution of OpenBLAS sub-DLLs like libgfortran)
+	Local $sDllDir = StringRegExpReplace($sDllPath, '\\[^\\]+$', '')
+	EnvSet("PATH", EnvGet("PATH") & ";" & $sDllDir)
+
+	; open DLL
 	Local $hDLL = DllOpen($sDllPath)
-	If $hDLL = -1 Then Return SetError(2, _WinAPI_GetLastError(), _WinAPI_GetLastErrorMessage())
+	If $hDLL = -1 Then Return SetError(3, 0, -1)
 
 	Return $hDLL
 EndFunc   ;==>_blas_LoadBlasDll
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name ..........: __blas_checkDir()
+; Description ...: checks a directory for an OpenBLAS DLL (architecture-specific name first, then generic fallback)
+; Syntax ........: __blas_checkDir($sDir)
+; Parameters ....: sDir - [String] directory path to check (without trailing backslash)
+; Return value ..: Success: full path to the found DLL (String)
+;                  not found: "" (empty string)
+; Author ........: AspirinJunkie
+; Modified.......: 2026-03-19
+; ===============================================================================================================================
+Func __blas_checkDir($sDir)
+	If $sDir = "" Then Return ""
+	; ensure trailing backslash
+	If StringRight($sDir, 1) <> "\" Then $sDir &= "\"
+
+	; architecture-specific name first
+	Local $sArchDll = @AutoItX64 ? "libopenblas_x64.dll" : "libopenblas_x86.dll"
+	If FileExists($sDir & $sArchDll) Then Return $sDir & $sArchDll
+
+	; generic fallback
+	If FileExists($sDir & "libopenblas.dll") Then Return $sDir & "libopenblas.dll"
+
+	Return ""
+EndFunc   ;==>__blas_checkDir
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _blas_FindBlasDll()
+; Description ...: searches for an OpenBLAS DLL in multiple locations with automatic x86/x64 detection
+; Syntax ........: _blas_FindBlasDll()
+; Parameters ....: None
+; Return value ..: Success: full path to the found DLL (String)
+;                  not found: "" (empty string, no @error)
+; Author ........: AspirinJunkie
+; Modified.......: 2026-03-19
+; Remarks .......: Search order:
+;                  1. @ScriptDir
+;                  2. Parent of @ScriptDir (one level up)
+;                  3. Subdirectories of @ScriptDir (one level deep)
+;                  4. Directories in PATH environment variable
+;                  In each directory, architecture-specific name is checked first (libopenblas_x64.dll / libopenblas_x86.dll),
+;                  then generic fallback (libopenblas.dll).
+; ===============================================================================================================================
+Func _blas_FindBlasDll()
+	Local $sResult
+
+	; Step 1: @ScriptDir
+	$sResult = __blas_checkDir(@ScriptDir)
+	If $sResult <> "" Then Return $sResult
+
+	; Step 2: parent of @ScriptDir
+	$sResult = __blas_checkDir(@ScriptDir & "\..")
+	If $sResult <> "" Then Return FileGetLongName($sResult)
+
+	; Step 3: subdirectories of @ScriptDir (one level)
+	Local $hSearch = FileFindFirstFile(@ScriptDir & "\*")
+	If $hSearch <> -1 Then
+		Local $sEntry
+		While True
+			$sEntry = FileFindNextFile($hSearch)
+			If @error Then ExitLoop
+			; skip . and .. to avoid redundant/infinite searches
+			If $sEntry = "." Or $sEntry = ".." Then ContinueLoop
+			; only directories
+			If Not StringInStr(FileGetAttrib(@ScriptDir & "\" & $sEntry), "D") Then ContinueLoop
+			$sResult = __blas_checkDir(@ScriptDir & "\" & $sEntry)
+			If $sResult <> "" Then
+				FileClose($hSearch)
+				Return $sResult
+			EndIf
+		WEnd
+		FileClose($hSearch)
+	EndIf
+
+	; Step 4: PATH environment variable
+	Local $aPaths = StringSplit(EnvGet("PATH"), ";", 2) ; flag 2 = no count element
+	For $i = 0 To UBound($aPaths) - 1
+		If $aPaths[$i] = "" Then ContinueLoop
+		$sResult = __blas_checkDir($aPaths[$i])
+		If $sResult <> "" Then Return $sResult
+	Next
+
+	Return ""
+EndFunc   ;==>_blas_FindBlasDll
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _blas_DownloadDll()
+; Description ...: downloads the latest OpenBLAS release from GitHub and extracts the DLL
+; Syntax ........: _blas_DownloadDll([$sTargetDir = @ScriptDir])
+; Parameters ....: sTargetDir - [String] (Default: @ScriptDir)
+;                              ↳ directory where the DLL should be saved
+; Return value ..: Success: full path to the downloaded DLL (String)
+;                  Failure: "" and set @error to:
+;                           | 1: GitHub API not reachable (InetRead failed)
+;                           | 2: asset URL not found in API response
+;                           | 3: ZIP download failed
+;                           | 4: ZIP extraction failed
+;                           | 5: DLL not found in extracted archive
+;                           | 6: copy to target directory failed
+; Author ........: AspirinJunkie
+; Modified.......: 2026-03-19
+; Remarks .......: Downloads the latest release from https://github.com/OpenMathLib/OpenBLAS/releases
+;                  Automatically selects x64 or x86 based on @AutoItX64.
+;                  Uses Shell.Application COM for ZIP extraction (no external dependencies).
+; ===============================================================================================================================
+Func _blas_DownloadDll($sTargetDir = @ScriptDir)
+	Local Const $sApiUrl = "https://api.github.com/repos/OpenMathLib/OpenBLAS/releases/latest"
+	Local $sArch = @AutoItX64 ? "x64" : "x86"
+	Local $sDllName = "libopenblas_" & $sArch & ".dll"
+	Local $sTempZip = @TempDir & "\openblas_download.zip"
+	Local $sTempDir = @TempDir & "\openblas_download"
+
+	ConsoleWrite("OpenBLAS DLL not found - downloading latest release..." & @CRLF)
+
+	; cleanup previous temp files
+	FileDelete($sTempZip)
+	DirRemove($sTempDir, 1) ; 1 = recursive
+
+	; Step 1: query GitHub API
+	Local $bJson = InetRead($sApiUrl)
+	If @error Then Return SetError(1, @error, "")
+	Local $sJson = BinaryToString($bJson)
+
+	; Step 2: find asset name matching architecture (base asset without suffixes like -int64)
+	Local $aMatch = StringRegExp($sJson, '"name"\s*:\s*"(OpenBLAS-[^"]*-' & $sArch & '\.zip)"', 1)
+	If @error Then Return SetError(2, 0, "")
+	Local $sAssetName = $aMatch[0]
+
+	; Step 3: find download URL for this asset
+	$aMatch = StringRegExp($sJson, '"browser_download_url"\s*:\s*"([^"]*/' & $sAssetName & ')"', 1)
+	If @error Then Return SetError(2, 1, "")
+	Local $sDownloadUrl = $aMatch[0]
+
+	ConsoleWrite("Downloading: " & $sAssetName & @CRLF)
+
+	; Step 4: download ZIP (synchronous: options=1 force reload, background=0 wait)
+	InetGet($sDownloadUrl, $sTempZip, 1, 0)
+	Local $iInetErr = @error
+	If $iInetErr Or Not FileExists($sTempZip) Then Return SetError(3, $iInetErr, "")
+
+	; Step 5: extract ZIP via Shell.Application COM
+	If Not DirCreate($sTempDir) Then Return SetError(4, 0, "")
+	Local $oShell = ObjCreate("Shell.Application")
+	If Not IsObj($oShell) Then Return SetError(4, 1, "")
+
+	Local $oZip = $oShell.Namespace($sTempZip)
+	Local $oDest = $oShell.Namespace($sTempDir)
+	If Not IsObj($oZip) Or Not IsObj($oDest) Then Return SetError(4, 2, "")
+
+	$oDest.CopyHere($oZip.Items, 4 + 16) ; 4=no dialog, 16=yes to all
+
+	; CopyHere is asynchronous - wait until extraction completes
+	; Note: ZIPs with a root folder (e.g. OpenBLAS-0.3.29-x64/) show top-level count=1 immediately,
+	; so we wait for count match AND add a stabilization sleep for subfolder contents.
+	Local $iExpected = $oZip.Items.Count
+	Local $iTimeout = 0
+	While $oDest.Items.Count < $iExpected And $iTimeout < 120 ; max 120 seconds
+		Sleep(1000)
+		$iTimeout += 1
+	WEnd
+	If $iTimeout >= 120 Then Return SetError(4, 3, "")
+	; stabilization sleep - ensures subfolder contents are fully written
+	Sleep(2000)
+
+	; Step 6: find libopenblas.dll in extracted directory (may be in subfolder)
+	Local $sDllPath = __blas_findFileRecursive($sTempDir, "libopenblas.dll")
+	If $sDllPath = "" Then Return SetError(5, 0, "")
+
+	; Step 7: copy to target directory with architecture-specific name
+	If StringRight($sTargetDir, 1) <> "\" Then $sTargetDir &= "\"
+	Local $sTargetPath = $sTargetDir & $sDllName
+	If Not FileCopy($sDllPath, $sTargetPath, 1) Then Return SetError(6, 0, "") ; 1 = overwrite
+
+	; Step 8: cleanup
+	FileDelete($sTempZip)
+	DirRemove($sTempDir, 1)
+
+	ConsoleWrite("OpenBLAS DLL downloaded successfully: " & $sTargetPath & @CRLF)
+	Return $sTargetPath
+EndFunc   ;==>_blas_DownloadDll
+
+; #INTERNAL_USE_ONLY# ===========================================================================================================
+; Name ..........: __blas_findFileRecursive()
+; Description ...: recursively searches for a file by name in a directory tree
+; Syntax ........: __blas_findFileRecursive($sDir, $sFileName)
+; Parameters ....: sDir      - [String] root directory to search
+;                  sFileName - [String] filename to find
+; Return value ..: Success: full path to the file (String)
+;                  not found: "" (empty string)
+; ===============================================================================================================================
+Func __blas_findFileRecursive($sDir, $sFileName)
+	If StringRight($sDir, 1) <> "\" Then $sDir &= "\"
+
+	; check current directory
+	If FileExists($sDir & $sFileName) Then Return $sDir & $sFileName
+
+	; recurse into subdirectories
+	Local $hSearch = FileFindFirstFile($sDir & "*")
+	If $hSearch = -1 Then Return ""
+
+	Local $sEntry, $sResult
+	While True
+		$sEntry = FileFindNextFile($hSearch)
+		If @error Then ExitLoop
+		; skip . and .. to prevent infinite recursion
+		If $sEntry = "." Or $sEntry = ".." Then ContinueLoop
+		If Not StringInStr(FileGetAttrib($sDir & $sEntry), "D") Then ContinueLoop
+		$sResult = __blas_findFileRecursive($sDir & $sEntry, $sFileName)
+		If $sResult <> "" Then
+			FileClose($hSearch)
+			Return $sResult
+		EndIf
+	WEnd
+	FileClose($hSearch)
+	Return ""
+EndFunc   ;==>__blas_findFileRecursive
 
 ; #INTERNAL_USE_ONLY# ===========================================================================================================
 ; Name ..........: __blas_error()
