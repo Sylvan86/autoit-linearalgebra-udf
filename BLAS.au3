@@ -2261,7 +2261,7 @@ Func _blas_gemm($mMatrixA, $mMatrixB, $mMatrixC, $fAlpha = 1, $fBeta = 0, $cTRAN
 			$sDataType = $mMatrixA.datatype
 			If IsKeyword($iM)   = 1 Then $iM   = $cTRANSA = "N" ? $mMatrixA.rows : $mMatrixA.cols
 			If IsKeyword($iK)   = 1 Then $iK   = $cTRANSA = "N" ? $mMatrixA.cols : $mMatrixA.rows
-			If IsKeyword($iLDA) = 1 Then $iLDA = $cTRANSA = "N" ? $iM : $iK
+			If IsKeyword($iLDA) = 1 Then $iLDA = $mMatrixA.rows ; LDA is always the physical storage leading dimension
 			$pA = $mMatrixA.ptr
 		Case IsPtr($mMatrixA)
 			$pA = $mMatrixA
@@ -2272,7 +2272,7 @@ Func _blas_gemm($mMatrixA, $mMatrixB, $mMatrixC, $fAlpha = 1, $fBeta = 0, $cTRAN
 		Case IsMap($mMatrixB)
 			If IsKeyword($iN)   = 1 Then $iN   = $cTransposedB = "N" ? $mMatrixB.cols : $mMatrixB.rows
 			If IsKeyword($iK)   = 1 Then $iK   = $cTransposedB = "N" ? $mMatrixB.rows : $mMatrixB.cols
-			If IsKeyword($iLDB) = 1 Then $iLDB = $cTransposedB = "N" ? $iK : $iN
+			If IsKeyword($iLDB) = 1 Then $iLDB = $mMatrixB.rows ; LDA is always the physical storage leading dimension
 			$pB = $mMatrixB.ptr
 		Case IsPtr($mMatrixB)
 			$pB = $mMatrixB
@@ -2283,7 +2283,7 @@ Func _blas_gemm($mMatrixA, $mMatrixB, $mMatrixC, $fAlpha = 1, $fBeta = 0, $cTRAN
 		Case IsMap($mMatrixC)
 			If IsKeyword($iN)   = 1 Then $iN   = $mMatrixC.cols
 			If IsKeyword($iK)   = 1 Then $iK   = $mMatrixC.rows
-			If IsKeyword($iLDC) = 1 Then $iLDC = $iM
+			If IsKeyword($iLDC) = 1 Then $iLDC = $mMatrixC.rows ; LDA is always the physical storage leading dimension
 			$pC = $mMatrixC.ptr
 		Case IsPtr($mMatrixC)
 			$pC = $mMatrixC
@@ -2672,7 +2672,7 @@ Func _blas_syrk($mMatrixA, $mMatrixC, $fAlpha = 1, $fBeta = 0, $cUPLO = "U", $cT
 			$sDataType = $mMatrixA.datatype
 			If IsKeyword($iN)   = 1 Then $iN   = $cTRANS = "N" ? $mMatrixA.rows : $mMatrixA.cols
 			If IsKeyword($iK)   = 1 Then $iK   = $cTRANS = "N" ? $mMatrixA.cols : $mMatrixA.rows
-			If IsKeyword($iLDA) = 1 Then $iLDA = $cTRANS = "N" ? $mMatrixA.rows : $mMatrixA.cols
+			If IsKeyword($iLDA) = 1 Then $iLDA = $mMatrixA.rows
 			$pA = $mMatrixA.ptr
 		Case IsPtr($mMatrixA)
 			$pA = $mMatrixA

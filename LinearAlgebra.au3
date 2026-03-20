@@ -237,7 +237,7 @@ Func _la_fromArray($aArray, Const $nMode = 0, Const $sType = "DOUBLE", Const $iK
 	If Not (IsArray($aArray) Or IsString($aArray)) Then Return SetError(2, 0, Null)
 
 	Local $mRet = _blas_fromArray($aArray, $nMode, $sType, $iKL, $iKU)
-	Return SetError(@error + 10, @extended, $mRet)
+	Return SetError(@error ? @error + 10 : 0, @extended, $mRet)
 EndFunc
 
 
@@ -2350,8 +2350,6 @@ Func _la_sqrtElements($mMatrix, $bInPlace = False, $iM = Default, $iN = Default,
 
 	Local Const $sDataType = $mMatrix.datatype, _
 				$cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
-
-	;~ ConsoleWrite(@CRLF & $iM & @CRLF & $iN & @CRLF & $iLDA & @CRLF & $iINCX & @CRLF & $sDataType & @CRLF)
 
 	; run native code instead of slow AutoIt-Code to calculate the square root of the elements
 	DllCallAddress("NONE", $__g_tBIN_NATIVE_MODULE_Ptr + $__g_mBIN_NATIVE_MODULE_Offsets[$cPrefix & "sqrt"], "PTR", $mMatrix.ptr, "INT", $iM, "INT", $iN, "INT", $iLDA, "INT", $iINCX)
