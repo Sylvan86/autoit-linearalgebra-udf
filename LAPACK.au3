@@ -3546,6 +3546,158 @@ Func _lp_gecon($mA, $fANORM, $cNORM = "1", $iN = Default, $iLDA = $iN, $sDataTyp
 EndFunc
 
 ; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_lansy()
+; Description ...: returns the value of the one norm, or the Frobenius norm, or the infinity norm,
+;                  or the element of largest absolute value of a real symmetric matrix
+; Syntax ........: _lp_lansy($mA, [$cNORM = "1", [$cUPLO = "L", [$iN = Default, [$iLDA = $iN, [$sDataType = "DOUBLE"]]]]])
+; Parameters ....: mA        - [Map] symmetric matrix A as a map, DllStruct or pointer
+;                  cNORM     - [Char] (Default: "1")
+;                            ↳ "1" or "O": one norm (max column sum)
+;                              "I": infinity norm (max row sum) — equals one norm for symmetric matrices
+;                              "F" or "E": Frobenius norm
+;                              "M": max absolute element
+;                  cUPLO     - [Char] (Default: "L")
+;                            ↳ "U": upper triangle of A is stored
+;                              "L": lower triangle of A is stored
+;                  iN        - [Int] (Default: Default)
+;                            ↳ order of matrix A (rows = cols)
+;                  iLDA      - [Int] (Default: $iN)
+;                            ↳ leading dimension of the array A
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: [Float] the norm value
+;                  Failure: Null and set @error to:
+;                           | 1: error during DllCall of lansy (@extended: @error from DllCall)
+;                           | 2: invalid value for cNORM
+; Author ........: AspirinJunkie
+; Modified.......: 2026-02-28
+; Remarks .......: For symmetric matrices, the one norm and infinity norm are equal.
+; Related .......: _lp_lange, _lp_pocon
+; Link ..........: https://www.netlib.org/lapack/explore-html/d1/d91/group__lansy_ga56417f96b7eee5e0e01c7a6c0e4cd37d.html
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[6,2,1],[2,5,2],[1,2,4]]")
+;                  ConsoleWrite("1-norm: " & _lp_lansy($mA, "1", "U") & @CRLF)
+; ===============================================================================================================================
+Func _lp_lansy($mA, $cNORM = "1", $cUPLO = "L", $iN = Default, $iLDA = $iN, $sDataType = "DOUBLE")
+	Local $pA ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iN)   = 1 Then $iN   = $mA.rows
+			If IsKeyword($iLDA) = 1 Then $iLDA = $iN
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
+
+	Local $pWORK = 0
+	Switch $cNORM
+		Case '1', 'O', 'o', 'I', 'i'
+			; one norm / infinity norm (equal for symmetric matrices) — needs WORK(N)
+			Local $tWork = DllStructCreate(StringFormat("%s[%d]", $sDataType, $iN))
+			$pWORK = DllStructGetPtr($tWork)
+		Case 'F', 'f', 'E', 'e', 'M', 'm'
+			; Frobenius norm, largest absolute value — no workspace needed
+		Case Else
+			Return SetError(2, 0, Null)
+	EndSwitch
+
+	; set char buffers
+	DllStructSetData($tBLASCHAR1, 1, $cNORM)
+	DllStructSetData($tBLASCHAR2, 1, $cUPLO = "U" ? "U" : "L")
+
+	Local $aDLL = DllCall($__g_hBLAS_DLL, $sDataType & ":cdecl", $cPrefix & "lansy", _
+		"PTR",  $pBLASCHAR1, _ ; NORM
+		"PTR",  $pBLASCHAR2, _ ; UPLO
+		"INT*", $iN, _         ; N
+		"PTR",  $pA, _         ; A
+		"INT*", $iLDA, _       ; LDA
+		"PTR",  $pWORK _       ; WORK
+	)
+	Return @error ? SetError(1, @error, Null) : $aDLL[0]
+EndFunc
+
+
+; #FUNCTION# ====================================================================================================================
+; Name ..........: _lp_pocon()
+; Description ...: estimates the reciprocal of the condition number of a real symmetric positive definite matrix
+;                  using the Cholesky factorization A = L·Lᵀ (or Uᵀ·U) computed by _lp_potrf()
+; Syntax ........: _lp_pocon($mA, $fANORM, [$cUPLO = "L", [$iN = Default, [$iLDA = $iN, [$sDataType = "DOUBLE"]]]])
+; Parameters ....: mA        - [Map] the Cholesky factor L (or U) from _lp_potrf() as a map, DllStruct or pointer
+;                  fANORM    - [Float] the 1-norm of the original matrix A (before factorization, calc with _lp_lansy())
+;                  cUPLO     - [Char] (Default: "L")
+;                            ↳ "U": upper triangle factor U is stored (A = Uᵀ·U)
+;                              "L": lower triangle factor L is stored (A = L·Lᵀ)
+;                  iN        - [Int] (Default: Default)
+;                            ↳ order of matrix A (rows = cols)
+;                  iLDA      - [Int] (Default: $iN)
+;                            ↳ leading dimension of the array A
+;                  sDataType - [String] (Default: "DOUBLE")
+;                            ↳ data type of the individual elements of the matrix. Either "DOUBLE" or "FLOAT" possible.
+; Return value ..: Success: [Float] RCOND — the reciprocal condition number (≈ 1/κ(A)). Small values indicate ill-conditioning.
+;                  Failure: Null and set @error to:
+;                           | 1: error during DllCall of pocon (@extended: @error from DllCall)
+;                           | 2: error inside call of pocon (@extended: INFO-value from pocon)
+; Author ........: AspirinJunkie
+; Modified.......: 2026-02-28
+; Remarks .......: Must be called after _lp_potrf(). The condition number κ(A) ≈ 1/RCOND.
+; Related .......: _lp_potrf, _lp_lansy, _lp_gecon
+; Link ..........: https://www.netlib.org/lapack/explore-html/dd/d8d/group__pocon_ga01cc26bae24d5a82cf3fcccf227c0b6e.html
+; Example .......: Yes
+;                  Global $mA = _blas_fromArray("[[6,2,1],[2,5,2],[1,2,4]]")
+;                  Global $fANORM = _lp_lansy($mA, "1", "U")
+;                  _lp_potrf($mA, "U")
+;                  Global $fRCOND = _lp_pocon($mA, $fANORM, "U")
+;                  ConsoleWrite("condition number: " & 1 / $fRCOND & @CRLF)
+; ===============================================================================================================================
+Func _lp_pocon($mA, $fANORM, $cUPLO = "L", $iN = Default, $iLDA = $iN, $sDataType = "DOUBLE")
+	Local $pA ; pointer to the data in memory
+
+	; Set parameters depending on the input type
+	Select
+		Case IsMap($mA)
+			$sDataType = $mA.datatype
+			If IsKeyword($iN)   = 1 Then $iN   = $mA.rows
+			If IsKeyword($iLDA) = 1 Then $iLDA = $iN
+			$pA = $mA.ptr
+		Case IsPtr($mA)
+			$pA = $mA
+		Case IsDllStruct($mA)
+			$pA = DllStructGetPtr($mA)
+	EndSelect
+
+	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d", _
+	            $sType = $sDataType & "*"
+
+	; set char buffer
+	DllStructSetData($tBLASCHAR1, 1, $cUPLO = "U" ? "U" : "L")
+
+	Local $tWORK = DllStructCreate(StringFormat("%s[%d]", $sDataType, 3 * $iN))
+	Local $tIWORK = DllStructCreate(StringFormat("INT[%d]", $iN))
+
+	Local $aDLL = DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "pocon", _
+		"PTR",  $pBLASCHAR1, _              ; UPLO
+		"INT*", $iN, _                      ; N
+		"PTR",  $pA, _                      ; A (Cholesky factor)
+		"INT*", $iLDA, _                    ; LDA
+		$sType, $fANORM, _                  ; ANORM
+		$sType, 0, _                        ; RCOND (output)
+		"PTR",  DllStructGetPtr($tWORK), _  ; WORK
+		"PTR",  DllStructGetPtr($tIWORK), _ ; IWORK
+		"INT*", 0 _                         ; INFO
+	)
+	If @error Then Return SetError(1, @error, Null)
+	Return $aDLL[9] = 0 ? $aDLL[6] : SetError(2, $aDLL[9], Null)
+EndFunc
+
+
+; #FUNCTION# ====================================================================================================================
 ; Name ..........: _lp_lacpy()
 ; Description ...: copies all or part of a two-dimensional matrix A to another matrix B
 ; Syntax ........: _lp_lacpy($mA, $mB, [$cUPLO = "X", [$iM = Default, [$iN = Default, [$iLDA = $iM, [$iLDB = $iM, [$sDataType = "DOUBLE"]]]]]])
