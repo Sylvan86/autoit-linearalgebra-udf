@@ -3973,7 +3973,7 @@ Func _lp_lapmt($mX, $tJPVT, $bForward = True, $iM = Default, $iN = Default, $iLD
 	Local Const $cPrefix = ($sDataType = "FLOAT") ? "s" : "d"
 
 	DllCall($__g_hBLAS_DLL, "NONE:cdecl", $cPrefix & "lapmt", _
-		"BOOLEAN*", $bForward, _              ; FORWRD
+		"INT*", $bForward ? 1 : 0, _          ; FORWRD (Fortran LOGICAL = 4 bytes, not BOOLEAN = 1 byte)
 		"INT*",     $iM, _                    ; M
 		"INT*",     $iN, _                    ; N
 		"PTR",      $pX, _                    ; X

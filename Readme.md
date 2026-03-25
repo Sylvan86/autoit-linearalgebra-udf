@@ -120,17 +120,6 @@ _la_solve              - computes the solution to a system of linear equations A
 
 ---- least squares solving ----
 _la_lstsq              - solves overdetermined or underdetermined [weighted] linear system
-
----- regression ----
-_la_regression         - calculates an n-dimensional linear or non-linear regression
-
----- adjustment ----
-_la_adjustment         - performs a least-squares adjustment calculation for a system of different [weighted] non-linear equations
-_la_adjustment_l1      - performs a adjustment calculation to L1 norm for a system of different [weighted] non-linear equations
-_la_adj_addObservation - adds an observation to the adjustment system
-
----- additional helper functions ----
-_la_adj_showResult     - formats the results of _la_adj more clearly and display them in a window
 ```
 
 ## Documentation
