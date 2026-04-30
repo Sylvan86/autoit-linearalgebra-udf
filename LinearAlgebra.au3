@@ -1280,7 +1280,7 @@ Func _la_toString(Const ByRef $mMatrix, $cRowSep = @CRLF, $cColSep = @TAB, $dFla
 	; check if Input is a valid AutoIt-BLAS/LAPACK-Map
 	If Not (IsMap($mMatrix) And MapExists($mMatrix, "ptr")) Then Return SetError(1, 0, Null)
 
-	Local $sRet = "", $i, $j, $sValue_
+	Local $sRet = "", $i, $j, $sValue, _
 	      $sFormatString = IsKeyword($dPrecision) = 1 ? "%" & $cFormatType : "%." & $dPrecision & $cFormatType
 
 	Local $aData = _blas_toArray($mMatrix)
